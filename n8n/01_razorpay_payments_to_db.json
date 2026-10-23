@@ -1,0 +1,205 @@
+{
+  "name": "01 Razorpay payments → warehouse",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 01 Razorpay → warehouse\nTriggers on payment.captured / invoice.paid.\n• Verifies HMAC signature\n• Idempotent upsert (payment_id PK)\n• Marks invoice paid\n• Program/trial payments move the ClickUp lead to Won and open an onboarding task\nWorkshop seats (₹3,999) are tagged via notes.workshop_id",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "razorpay",
+        "responseMode": "onReceived"
+      },
+      "id": "55db0677-e020-5185-9f49-294be098a5ad",
+      "name": "Razorpay Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst sig = $input.first().json.headers['x-razorpay-signature'];\nconst body = JSON.stringify($input.first().json.body);\nconst expected = crypto.createHmac('sha256', $env.RAZORPAY_WEBHOOK_SECRET).update(body).digest('hex');\nif (sig !== expected) throw new Error('Invalid Razorpay signature');\nconst e = $input.first().json.body;\nconst p = e.payload.payment?.entity || {};\nconst inv = e.payload.invoice?.entity || {};\n// notes.product_code is set when the invoice/payment link is created: TRIAL_3M | PROGRAM_12M | WORKSHOP\nreturn [{ json: {\n  event: e.event, payment_id: p.id, invoice_id: inv.id || p.invoice_id,\n  amount: (p.amount || inv.amount_paid) / 100, method: p.method,\n  captured_at: new Date((p.created_at || inv.paid_at) * 1000).toISOString(),\n  product_code: (p.notes || inv.notes || {}).product_code,\n  workshop_id: (p.notes || inv.notes || {}).workshop_id || null,\n  phone: p.contact, raw: e } }];"
+      },
+      "id": "963a935c-d3b9-5b52-a455-c94befce3769",
+      "name": "Verify signature + map",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into payments (payment_id, invoice_id, amount, method, captured_at, raw)\nvalues ($1,$2,$3,$4,$5,$6::jsonb)\non conflict (payment_id) do nothing;\nupdate invoices set status='paid' where invoice_id=$2;",
+        "options": {
+          "queryReplacement": "={{$json.payment_id}},{{$json.invoice_id}},{{$json.amount}},{{$json.method}},{{$json.captured_at}},{{JSON.stringify($json.raw)}}"
+        }
+      },
+      "id": "d23ed0e4-c967-57a2-98dc-f68ff29d6f4d",
+      "name": "Upsert payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "leftValue": "={{$('Verify signature + map').item.json.product_code}}",
+              "rightValue": "WORKSHOP",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "43c14e59-5bdf-57bb-b953-05023261aed5",
+      "name": "Program or trial?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "id": "={{$json.clickup_task_id}}",
+        "updateFields": {
+          "status": "won"
+        }
+      },
+      "id": "1e15e36b-d82f-53b4-a1ec-7cc9be632bce",
+      "name": "Move ClickUp lead → Won",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -80
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "list": "={{$env.CLICKUP_ONBOARDING_LIST}}",
+        "name": "=Onboard {{$json.teen_name}} – {{$('Verify signature + map').item.json.product_code}}",
+        "additionalFields": {
+          "assignees": "={{$env.ADVISOR_POOL}}",
+          "dueDate": "={{$now.plus({days:2}).toISO()}}"
+        }
+      },
+      "id": "5e75a8cc-e161-51fd-8c56-c9309330f1fe",
+      "name": "Create onboarding task",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        960,
+        80
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Razorpay Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify signature + map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify signature + map": {
+      "main": [
+        [
+          {
+            "node": "Upsert payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert payment": {
+      "main": [
+        [
+          {
+            "node": "Program or trial?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Program or trial?": {
+      "main": [
+        [
+          {
+            "node": "Move ClickUp lead → Won",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create onboarding task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

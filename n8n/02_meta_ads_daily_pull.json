@@ -1,0 +1,243 @@
+{
+  "name": "02 Meta Ads insights daily pull",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 02 Meta Ads daily pull\nPulls yesterday's ad-level insights, upserts by (ad_id, day).\nAny ad with frequency ≥ 3 auto-creates a 'refresh creative' task for marketing.\nFeeds: CPQL, CTR table, RCA scale/refresh/drop.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "e4ddd129-7fff-56df-a6b4-037202a7b148",
+      "name": "Every day 06:00 IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v21.0/act_{{$env.META_AD_ACCOUNT}}/insights",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "level",
+              "value": "ad"
+            },
+            {
+              "name": "date_preset",
+              "value": "yesterday"
+            },
+            {
+              "name": "time_increment",
+              "value": "1"
+            },
+            {
+              "name": "fields",
+              "value": "ad_id,ad_name,adset_id,campaign_id,campaign_name,spend,impressions,reach,clicks,frequency,actions"
+            },
+            {
+              "name": "access_token",
+              "value": "={{$env.META_TOKEN}}"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "responseContainsNextURL",
+              "nextURL": "={{$response.body.paging.next}}"
+            }
+          }
+        }
+      },
+      "id": "8a487d12-d7ea-5d78-a13f-453408b2b002",
+      "name": "Meta Insights API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(i => i.json.data).map(r => ({ json: {\n  ad_id: r.ad_id, day: r.date_start, spend: +r.spend, impressions: +r.impressions, reach: +r.reach,\n  clicks: +r.clicks, frequency: +r.frequency, campaign_id: r.campaign_id, campaign_name: r.campaign_name, ad_name: r.ad_name,\n  leads: +((r.actions||[]).find(a => a.action_type === 'lead')?.value || 0) } }));"
+      },
+      "id": "32901e18-e76d-5014-ac12-7e88c047ec61",
+      "name": "Flatten rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": "ad_insights_daily",
+        "columns": {
+          "matchingColumns": [
+            "ad_id",
+            "day"
+          ]
+        }
+      },
+      "id": "b3dbbca9-cc1a-59cb-a984-03c9ba52116b",
+      "name": "Upsert insights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$json.frequency}}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ]
+        }
+      },
+      "id": "ff023e2e-676b-5957-83c3-78900d2708c2",
+      "name": "Frequency ≥ 3?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "list": "={{$env.CLICKUP_MARKETING_LIST}}",
+        "name": "=Refresh creative: {{$json.ad_name}} (freq {{$json.frequency}})",
+        "additionalFields": {
+          "priority": 2,
+          "tags": [
+            "creative-fatigue"
+          ]
+        }
+      },
+      "id": "32454b41-1b80-5c48-9476-65e6acd427a4",
+      "name": "ClickUp: refresh creative",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        -60
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every day 06:00 IST": {
+      "main": [
+        [
+          {
+            "node": "Meta Insights API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Insights API": {
+      "main": [
+        [
+          {
+            "node": "Flatten rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten rows": {
+      "main": [
+        [
+          {
+            "node": "Upsert insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert insights": {
+      "main": [
+        [
+          {
+            "node": "Frequency ≥ 3?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Frequency ≥ 3?": {
+      "main": [
+        [
+          {
+            "node": "ClickUp: refresh creative",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

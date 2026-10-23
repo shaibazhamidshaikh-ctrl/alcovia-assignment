@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alcovia Assignment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="appnav"><div class="appnav-in">
+  <a class="brand" href="index.html"><b>Alcovia · Assignment</b><span>Shaibaz Shaikh · Product, Systems &amp; Analytics Lead</span></a>
+  <nav class="tabs-main" aria-label="Assignment sections"><a href="index.html" class="on" aria-current="page"><span class="n">⌂</span>Overview</a><a href="writeup.html"><span class="n">1</span>Write-up</a><a href="gtm.html"><span class="n">2</span>GTM tracker</a><a href="students.html"><span class="n">3</span>Student tracker</a></nav>
+</div></header>
+<div class="wrap" style="max-width:960px">
+  <h1 style="font-size:32px;margin-top:10px">Alcovia · Product, Systems &amp; Analytics Lead</h1>
+  <p style="color:var(--muted);max-width:640px">Assignment submission by Shaibaz Shaikh. One data spine (Supabase + n8n), two live dashboards on top of it, and a six-week plan for a team of three starting 1 November.</p>
+  <div class="hint" style="margin-top:22px"><b>This submission has three parts:</b> the executive write-up, the GTM tracker and the student tracker. Use the tabs at the top to move between them.</div>
+  <div class="grid three steps">
+    <a class="card step" href="writeup.html"><span class="num">1</span><h2>Executive write-up</h2><p>Six-week plan and team split, app adoption plan with findings from the app, delivery structure, student KPI design.</p><span class="go">Read the write-up →</span></a>
+    <a class="card step" href="gtm.html"><span class="num">2</span><h2>GTM tracker</h2><p>Revenue vs target, trials vs program, workshops, unpaid invoices, renewals, Meta funnel, creatives, RCA.</p><span class="go">Open the dashboard →</span></a>
+    <a class="card step" href="students.html"><span class="num">3</span><h2>Student tracker</h2><p>Weekly review board, Quantity / Quality / Performance lenses, day-to-quarter KPIs, per-student profile.</p><span class="go">Open the dashboard →</span></a>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>How data flows</h3>
+    <p style="margin:6px 0 0;color:var(--muted);font-size:13.5px">ClickUp (lead statuses) · Razorpay (payments, invoices) · Meta Ads (daily insights) · Smallest.ai (call outcomes) · Alcovia app DB (focus, tasks, chapters) · Wearables · Quiz form &nbsp;→&nbsp; <b>n8n (9 workflows)</b> &nbsp;→&nbsp; <b>Supabase warehouse</b> &nbsp;→&nbsp; SQL metric views &nbsp;→&nbsp; dashboards embedded in ClickUp, plus automated nudges back to parents, advisors and the marketing team.</p></div>
+
+  <nav class="pager" aria-label="Page navigation"><span></span><a class="next" href="writeup.html"><small>Next →</small>Write-up</a></nav>
+  <footer>Dashboards use seeded dummy data, as the brief asked.</footer>
+</div>
+</body>
+</html>

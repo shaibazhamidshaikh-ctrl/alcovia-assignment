@@ -1,0 +1,234 @@
+{
+  "name": "03 ClickUp lead stage → funnel events + AI reminder calls",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 03 ClickUp → funnel events\nClickUp stays the team's UI; every status move becomes an immutable stage event, so show-up rate, drop-off and journey length are computed, never typed.\nDiscovery booked → Smallest.ai reminder calls (lifts show-up).\nAmbition interview → reminder to the teen.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "team": "={{$env.CLICKUP_TEAM}}",
+        "events": [
+          "taskCreated",
+          "taskStatusUpdated"
+        ],
+        "filters": {
+          "listId": "={{$env.CLICKUP_LEADS_LIST}}"
+        }
+      },
+      "id": "ca2c162c-0535-592a-896c-396b66039a0e",
+      "name": "ClickUp trigger (status changed)",
+      "type": "n8n-nodes-base.clickUpTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ClickUp statuses are the single UI; this map is the contract with the warehouse.\nconst MAP = { 'new lead':'lead', 'qualified':'qualified', 'discovery booked':'discovery_set',\n  'discovery done':'discovery_attended', 'ambition interview':'ambition_interview',\n  'architect session':'architect_session', 'won':'won', 'lost':'lost' };\nconst t = $input.first().json;\nconst status = (t.history_items?.[0]?.after?.status || t.status?.status || '').toLowerCase();\nconst stage = MAP[status];\nif (!stage) return [];   // ignore non-funnel statuses\nconst cf = Object.fromEntries((t.custom_fields||[]).map(f => [f.name, f.value]));\nreturn [{ json: { clickup_task_id: t.task_id || t.id, stage, occurred_at: new Date().toISOString(),\n  actor: t.history_items?.[0]?.user?.email || 'system', lost_reason: cf['Lost reason'] || null,\n  phone: cf['Parent phone'], slot: cf['Discovery slot'], source: cf['Source'], utm_campaign: cf['utm_campaign'] } }];"
+      },
+      "id": "f1dfd1f7-bf30-55c7-a155-697dfc678922",
+      "name": "Map status → stage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into leads (clickup_task_id, phone, source, utm_campaign)\nvalues ($1,$5,$6,$7) on conflict (clickup_task_id) do nothing;\ninsert into lead_stage_events (lead_id, stage, occurred_at, actor, lost_reason)\nselect lead_id, $2::funnel_stage, $3, $4, $8 from leads where clickup_task_id=$1\non conflict (lead_id, stage) do nothing;",
+        "options": {
+          "queryReplacement": "={{$json.clickup_task_id}},{{$json.stage}},{{$json.occurred_at}},{{$json.actor}},{{$json.phone}},{{$json.source}},{{$json.utm_campaign}},{{$json.lost_reason}}"
+        }
+      },
+      "id": "69360204-3a9c-5d39-a359-1b646c17a070",
+      "name": "Insert stage event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$('Map status → stage').item.json.stage}}",
+                    "rightValue": "discovery_set",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "discovery"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$('Map status → stage').item.json.stage}}",
+                    "rightValue": "ambition_interview",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "interview"
+            }
+          ]
+        }
+      },
+      "id": "0353f334-79ec-5cbe-89d3-eaf23e3b0255",
+      "name": "Which stage?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://atoms-api.smallest.ai/api/v1/conversation/outbound",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SMALLEST_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"agentId\": \"{{$env.SMALLEST_REMINDER_AGENT}}\", \"phoneNumber\": \"{{$('Map status → stage').item.json.phone}}\", \"variables\": {\"slot\": \"{{$('Map status → stage').item.json.slot}}\"}, \"callbackUrl\": \"{{$env.N8N_BASE}}/webhook/smallest-outcome\"}"
+      },
+      "id": "e850da7f-d520-52a4-8b03-0edecb53b1d7",
+      "name": "Smallest.ai: schedule reminder (T-24h, T-1h)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://atoms-api.smallest.ai/api/v1/conversation/outbound",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"agentId\": \"{{$env.SMALLEST_TEEN_AGENT}}\", \"phoneNumber\": \"{{$('Map status → stage').item.json.phone}}\"}"
+      },
+      "id": "eb649ba4-0320-5185-8567-a2dede7b9197",
+      "name": "Smallest.ai: teen interview reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        80
+      ]
+    }
+  ],
+  "connections": {
+    "ClickUp trigger (status changed)": {
+      "main": [
+        [
+          {
+            "node": "Map status → stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map status → stage": {
+      "main": [
+        [
+          {
+            "node": "Insert stage event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert stage event": {
+      "main": [
+        [
+          {
+            "node": "Which stage?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which stage?": {
+      "main": [
+        [
+          {
+            "node": "Smallest.ai: schedule reminder (T-24h, T-1h)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Smallest.ai: teen interview reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

@@ -1,0 +1,144 @@
+{
+  "name": "05 Daily 8 PM quiz → scores",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 05 Daily quiz\nPhase 1: Google Form quiz (auto-graded) → this flow. Phase 2: quiz moves into the app as a Home card and this flow is retired.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 21 * * *"
+            }
+          ]
+        }
+      },
+      "id": "3ab320d4-e1a2-5fff-8e89-fe06dd83c131",
+      "name": "Every day 21:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{$env.QUIZ_SHEET_ID}}",
+        "sheetName": "Form Responses 1",
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "date",
+              "lookupValue": "={{$today.toFormat('yyyy-MM-dd')}}"
+            }
+          ]
+        }
+      },
+      "id": "a5e89c8c-9e36-5c3c-8c93-e45561581d7e",
+      "name": "Read today's responses",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(r => ({ json: {\n  quiz_id: 'Q' + $today.toFormat('yyyyMMdd'), app_user_id: r.json.alcovia_id,\n  score_pct: Math.round(100 * r.json.Score.split('/')[0] / r.json.Score.split('/')[1]),\n  submitted_at: r.json.Timestamp } }));"
+      },
+      "id": "80691419-e4db-54cb-a385-cc329739dcc6",
+      "name": "Match student + score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into quizzes (quiz_id, quiz_date) values ($1, current_date) on conflict do nothing;\ninsert into quiz_attempts (quiz_id, student_id, score_pct, submitted_at)\nselect $1, student_id, $3, $4 from students where app_user_id=$2\non conflict (quiz_id, student_id) do update set score_pct=excluded.score_pct;",
+        "options": {
+          "queryReplacement": "={{$json.quiz_id}},{{$json.app_user_id}},{{$json.score_pct}},{{$json.submitted_at}}"
+        }
+      },
+      "id": "596bf115-3aed-5098-9524-0662e4903cc5",
+      "name": "Upsert attempts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every day 21:00": {
+      "main": [
+        [
+          {
+            "node": "Read today's responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read today's responses": {
+      "main": [
+        [
+          {
+            "node": "Match student + score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match student + score": {
+      "main": [
+        [
+          {
+            "node": "Upsert attempts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

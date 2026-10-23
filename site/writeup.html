@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alcovia Executive Write-up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+ .doc{max-width:860px}
+ .doc h2{font-size:22px;margin:38px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+ .doc h3{font-size:15px;margin:22px 0 6px}
+ .doc p,.doc li{font-size:15px;line-height:1.65}
+ .doc ul,.doc ol{padding-left:20px}
+ .doc table{margin:10px 0 6px}
+ .doc td,.doc th{vertical-align:top}
+ .tldr{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:14px 18px}
+ .callout{background:color-mix(in srgb,var(--accent-2) 12%,transparent);border-radius:10px;padding:12px 16px;font-size:14px}
+ .gantt td.on{background:color-mix(in srgb,var(--accent) 22%,transparent);font-size:12px}
+ .gantt td{font-size:12px;border:1px solid var(--line)}
+ .flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin:12px 0}
+ .flow div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px}
+ .flow b{display:block;font-size:13px;color:var(--accent)}
+ @media print{.appnav,.pager,.btn{display:none}.doc h2{break-before:auto}}
+ .shots{display:grid;grid-template-columns:1.55fr .8fr 1.25fr .72fr;gap:10px;margin-top:14px;align-items:start}
+ .shots figure{margin:0}
+ .shots img{width:100%;border-radius:8px;display:block;border:1px solid var(--line)}
+ .shots figcaption{font-size:12px;line-height:1.4;color:var(--muted);margin-top:5px}
+ @media (max-width:700px){.shots{grid-template-columns:1fr 1fr}}
+ @media print{.shots{break-inside:avoid}}
+</style>
+</head>
+<body>
+<header class="appnav"><div class="appnav-in">
+  <a class="brand" href="index.html"><b>Alcovia · Assignment</b><span>Shaibaz Shaikh · Product, Systems &amp; Analytics Lead</span></a>
+  <nav class="tabs-main" aria-label="Assignment sections"><a href="index.html"><span class="n">⌂</span>Overview</a><a href="writeup.html" class="on" aria-current="page"><span class="n">1</span>Write-up</a><a href="gtm.html"><span class="n">2</span>GTM tracker</a><a href="students.html"><span class="n">3</span>Student tracker</a></nav>
+</div></header>
+<div class="wrap doc">
+  <h1>Product, Systems &amp; Analytics Lead: how I'd run the first six weeks</h1>
+  <p class="sub" style="color:var(--muted)">Shaibaz Shaikh · Assignment submission · Team: me + 1 full-stack engineer (FSE) + 1 process/systems designer (SD) · Start date 1 Nov 2026</p>
+
+  <div class="tldr">
+    <ol style="margin:0">
+      <li><b>One data spine first.</b> All four problems fail for the same reason: data lives in ClickUp notes, Razorpay, Meta and the app, and nobody can see it together. Weeks 1–2 build one Supabase warehouse fed by n8n, so every dashboard after that is a view, not a project.</li>
+      <li><b>ClickUp stays the team's UI.</b> I'm not replacing the tool the team already uses. Every ClickUp status change becomes a timestamped event, which is what makes show-up rate and journey length computable instead of typed.</li>
+      <li><b>App adoption:</b> I'd change the target from "30 minutes in the app" to "45 focus-minutes a day, with a study task attached." The Realm already holds attention, so the plan is to route study through it rather than build more features. Of the 25 features, about 8 matter right now.</li>
+      <li><b>Delivery:</b> no feature starts without a one-page brief stating the metric, baseline, target and kill rule, and nothing is "done" until its tracking events fire. Each launch gets a readout at day 14 where we decide to scale, iterate or kill.</li>
+      <li><b>Student dashboard:</b> every activity is measured on three lenses (did we run it, did they like it, did they improve), with data captured automatically. The only manual inputs are a 1-tap session rating and one facilitator form per workshop.</li>
+    </ol>
+  </div>
+
+  <h2>1. Timeline and team allocation (1 Nov – 12 Dec)</h2>
+  <p>Sequencing logic: <b>revenue visibility first</b> (it funds everything and its data sources are clean APIs), <b>adoption experiments in parallel</b> (they need a baseline only, not the warehouse), then the <b>student dashboard</b> (it depends on app events and the habits we build during the adoption sprints).</p>
+  <div class="tablewrap"><table class="gantt">
+    <tr><th>Workstream</th><th>Wk 1<br>1–7 Nov</th><th>Wk 2<br>8–14</th><th>Wk 3<br>15–21</th><th>Wk 4<br>22–28</th><th>Wk 5<br>29 Nov–5 Dec</th><th>Wk 6<br>6–12 Dec</th></tr>
+    <tr><td><b>A. Data spine</b><br>schema, event tracking, n8n error handling</td><td class="on">FSE: Supabase + app events<br>SD: ClickUp status map</td><td class="on">FSE: flows 01–04, 08</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td><b>B. GTM tracker</b></td><td class="on">Me: metric dictionary, targets</td><td class="on">SD: Razorpay product codes, invoice SOP</td><td class="on">Me + FSE: dashboard live, RCA rules</td><td>Weekly review ritual starts</td><td></td><td></td></tr>
+    <tr><td><b>C. App adoption</b></td><td class="on">Me: 6 student + 3 parent calls, app teardown</td><td class="on">Me: experiment briefs<br>SD: dormant-7 win-back</td><td class="on">FSE: Sprint 1 (quiz in-app, focus→chapter)</td><td class="on">Readout 1</td><td class="on">FSE: Sprint 2 (Realm gating, Home cleanup)</td><td class="on">Readout 2</td></tr>
+    <tr><td><b>D. Student dashboard</b></td><td></td><td></td><td class="on">SD: advisor workflow, rating prompt spec</td><td class="on">FSE: flows 05–07, wearables</td><td class="on">Me: KPI QA vs ClickUp history</td><td class="on">Live for weekly review</td></tr>
+    <tr><td><b>E. Delivery OS</b></td><td class="on">Me: brief template, rituals</td><td>runs</td><td>runs</td><td>runs</td><td>runs</td><td class="on">Retro + v2</td></tr>
+  </table></div>
+  <h3>Who owns what</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Person</th><th>Time split</th><th>Owns</th></tr>
+    <tr><td>Me</td><td>40% adoption · 25% analytics · 20% delivery OS · 15% stakeholder/reviews</td><td>Problem framing, metric definitions, experiment design, readouts, acceptance of every build, founder updates</td></tr>
+    <tr><td>Full-stack engineer</td><td>45% data spine + dashboards · 55% app sprints</td><td>Supabase, n8n flows, app tracking, in-app quiz, focus/Realm changes, wearable sync</td></tr>
+    <tr><td>Systems designer (commerce)</td><td>50% GTM process · 50% student ops process</td><td>ClickUp pipeline and status contract, Razorpay invoicing rules, advisor SOPs, alert escalation rules, data-entry cadence</td></tr>
+  </table></div>
+  <p class="note">Why this split: the FSE is the constraint, so their time goes only to things that remove manual work or change student behaviour. Process work the SD can do in ClickUp and Razorpay settings never goes to the FSE's queue.</p>
+
+  <h2>2. App adoption: from 2.15 minutes to a habit</h2>
+  <h3>What the data says</h3>
+  <ul>
+    <li>Students come for <b>Home</b> (all) and <b>the Realm</b> (13 of 20). Focus Timer is opened by 11 but kept by 5. Wellness, Streak, Rankings and Goals are effectively unused.</li>
+    <li>Study features fade: 10 opened Syllabus, 1 this week; nobody opened Planner or Academic history this week. The study layer sits <i>next to</i> the game instead of being <i>inside</i> it.</li>
+    <li>The base is 20 students and 7 are dormant. At this size, cohort A/B tests are meaningless; I'd use before/after per student, plus conversations.</li>
+  </ul>
+  <h3>Reframing the target</h3>
+  <p>30 minutes a day of screen time in a study app can be hit by a game loop alone, which helps no parent. I'd propose a <b>north star of focus-minutes per active student per day (target 45)</b>, where each focus session is attached to a chapter or task. Because focus sessions run inside the app, hitting 45 focus minutes delivers the 30-minute app-time goal as a by-product, honestly.</p>
+  <p>Input metrics: weekly active students (target 18 of 20), % of days with the 8 PM quiz done in-app, % of focus sessions linked to a chapter, and the count of chapters moving up a rigour stage per week.</p>
+
+  <div class="callout"><b>What I saw using the app (test account, 23 Oct)</b>
+    <ol style="margin:8px 0 0;padding-left:18px">
+      <li><b>Focus works, but nothing else gets credit for it.</b> Today's Focus shows 85 minutes across 10 sessions. On the same Home screen, Daily Velocity is 0.0%, tasks are 0/4, Study Planner shows 0h completed of 59h, and the streak is 0 days. A student who did the right thing sees four failures. This is why bet 2 links each focus session to a chapter or task.</li>
+      <li><b>The task list is a backlog, not today's mission.</b> "Today's Mission" opens on All Tasks: 104 of 156 done with <b>51 overdue</b>, led by May and June items. Many are goal-sized ("Improve discipline and time management") rather than doable today. The October monthly goals all say "No daily tasks planned yet," so the roadmap never turns into daily work.</li>
+      <li><b>Progress numbers disagree.</b> Home shows syllabus at 13% (7/52 chapters); Study shows 6% (8/144). Math (0/34) and Mathematics (1/4) are separate subjects. Physics shows 19% with 0/4 chapters done. Study Planner says "On track" at 0h of 59h. If the student can't trust the numbers, an advisor can't either. This is the case for one readiness definition (the 5 rigour stages).</li>
+      <li><b>Manual logging doesn't happen.</b> Daily Habit Analysis shows 16.9h as "Other" and 0h for school and self-study, then builds insights on that. Data that needs the teen to type it will stay empty, which is why the student dashboard pulls from focus sessions, tasks and wearables instead.</li>
+      <li><b>Too many places, rewards without meaning.</b> Explore lists 16 features in four groups, and the balance shows 202,688 coins. At that scale coins stop feeling like a reward. Notifications are off, and the permission prompt appears on open and leads with "castle under attack." I'd ask after the first completed focus session and lead with the 8 PM quiz and session reminders.</li>
+    </ol>
+    <div class="shots">
+      <figure><a href="img/app-focus-vs-velocity.jpg" target="_blank"><img src="img/app-focus-vs-velocity.jpg" alt="Home screen: 85 focus minutes today, yet Daily Velocity 0.0% and a 0-day streak"></a><figcaption><b>1.</b> 85 focus minutes, yet 0.0% velocity and a 0-day streak</figcaption></figure>
+      <figure><a href="img/app-tasks-overdue.jpg" target="_blank"><img src="img/app-tasks-overdue.jpg" alt="Today's Mission: 104 of 156 done, 51 overdue"></a><figcaption><b>2.</b> "Today's Mission" opens on 51 overdue tasks</figcaption></figure>
+      <figure><a href="img/app-syllabus-mismatch.jpg" target="_blank"><img src="img/app-syllabus-mismatch.jpg" alt="Syllabus shows 13% on Home and 6% on Study; Math and Mathematics listed separately"></a><figcaption><b>3.</b> Syllabus 13% on Home vs 6% on Study; Math and Mathematics as two subjects</figcaption></figure>
+      <figure><a href="img/app-habit-other.jpg" target="_blank"><img src="img/app-habit-other.jpg" alt="Daily Habit Analysis: 16.9 hours logged as Other, 0 hours school and self study"></a><figcaption><b>4.</b> 16.9h logged as "Other", 0h school and self-study</figcaption></figure>
+    </div>
+    <div class="note" style="margin-top:6px">Screenshots from my phone using the test account, 23 Oct 2026. Tap to enlarge.</div>
+  </div>
+
+  <h3>Bets, in order</h3>
+  <div class="tablewrap"><table>
+    <tr><th>#</th><th>Bet</th><th>Why I believe it</th><th>Success / kill rule (day 14)</th></tr>
+    <tr><td>1</td><td><b>Move the 8 PM quiz into the app</b> as a Home card with a push at 7:55 PM and coin reward</td><td>Alcovia already runs this ritual daily, outside the app. It's a ready-made daily reason to open the app.</td><td>≥60% of active students do it in-app 5 of 7 days. Kill: &lt;30%.</td></tr>
+    <tr><td>2</td><td><b>Focus session must pick a chapter;</b> completing it advances the chapter's rigour stage and hatches the egg</td><td>Focus already pays the game (eggs). Linking it to a chapter makes the study data come free and gives Syllabus a reason to exist.</td><td>≥70% of sessions chapter-linked; focus min/day +50% vs baseline.</td></tr>
+    <tr><td>3</td><td><b>Realm territory only via focus</b>; advisor tasks appear as Side Quests with coins</td><td>Realm is the strongest pull. Gating it on study converts existing attention instead of inventing new.</td><td>Realm users keep ≥90% retention; quest completion ≥50%.</td></tr>
+    <tr><td>4</td><td><b>Cut cognitive load:</b> hide Rankings, Wellness league and Streak-as-separate-feature; Home shows 3 cards (today's quiz, next task, focus)</td><td>25 features for 20 students. Features with 1 user add noise. Revisit Wellness once ≥5 wearables are connected.</td><td>Time-to-first-action on Home under 10 s; no drop in Realm usage.</td></tr>
+    <tr><td>5</td><td><b>Win back the 7 dormant</b>: advisor call + parent WhatsApp with the teen's own progress card</td><td>Dormant users won't see in-app changes. A human touch is cheaper than any feature.</td><td>≥4 of 7 active again within 10 days.</td></tr>
+    <tr><td>6</td><td><b>Focus Lock</b> (whitelisted calls only): Android Lock Task mode first, iOS Screen Time API (FamilyControls) second</td><td>Asked for in the brief and the strongest parent-facing proof. Larger build, so it goes after bets 1–3 prove the loop.</td><td>Spec in week 4, build in Jan, after readout 2.</td></tr>
+  </table></div>
+
+  <h2>3. GTM tracker</h2>
+  <p><a class="btn" href="gtm.html">Open the GTM tracker →</a></p>
+  <p>Every tile and table changes with the timeline selector and maps to a numbered query in <code>sql/gtm_metrics.sql</code>.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Block</th><th>What it shows</th><th>Source → automation</th></tr>
+    <tr><td>Revenue</td><td>Target vs achieved (prorated to window), trial vs full program, students onboarded, trial→full conversions, workshop revenue per fortnightly session, program vs workshop share</td><td>Razorpay webhook → flow 01. Every invoice/payment link carries <code>notes.product_code</code> and <code>workshop_id</code>, so revenue is classified at source (the SD's SOP).</td></tr>
+    <tr><td>Receivables</td><td>Invoices generated but unpaid, with ageing; trial renewals due in 30 days, ranked by risk (app usage + attendance)</td><td>Flow 09 runs the renewal pipeline: T-21 progress report, T-14 advisor call task, T-7 invoice.</td></tr>
+    <tr><td>Funnel</td><td>Lead → qualified → discovery set → attended (show-up rate) → ambition interview → architect (drop-off) → signed; CPQL, conversion %, organic count, average journey days</td><td>ClickUp status change → flow 03 writes a stage event. Smallest.ai reminders on discovery/interview; outcomes logged by flow 04.</td></tr>
+    <tr><td>Campaigns</td><td>CTR per creative (top and refresh lists), CPL, 7-day frequency with a ≥3 flag, landing pages (bounce, form drop-off, load time)</td><td>Meta Insights API daily → flow 02, which auto-opens a "refresh creative" ClickUp task at freq ≥3.</td></tr>
+    <tr><td>RCA</td><td>Per campaign: Scale / Refresh / Hold / Drop</td><td>Rule set below, computed in SQL so the decision is consistent week to week.</td></tr>
+  </table></div>
+  <p><b>RCA rules.</b> <i>Scale</i> (+20–30% budget) if CPQL ≤ 80% of average, ≥1 sign-up and frequency &lt; 3. <i>Refresh</i> if frequency ≥ 3 or CTR &lt; 70% of average. <i>Drop</i> if CPQL &gt; 150% of average with zero sign-ups. Otherwise <i>Hold</i>. Judged on CPQL and sign-ups, not CPL, because cheap unqualified leads waste advisor hours on discovery calls.</p>
+  <p><b>Where it lives:</b> production version on Metabase (open source, free) connected read-only to Supabase, embedded as a ClickUp view so the team doesn't open a new tool. Reviewed every Monday in a 20-minute GTM huddle.</p>
+
+  <h2>4. Structure that makes features actually work</h2>
+  <p>The failure pattern I'd design against: features ship, nobody checks whether they moved anything, and the next feature starts. Every OKR, whether an app feature, an automation or an analytics upload, goes through the same seven steps.</p>
+  <div class="flow">
+    <div><b>1 · Frame</b>Me. One-page brief: user, problem, success metric with baseline and target, guardrail metric, kill rule.</div>
+    <div><b>2 · Shape</b>SD + me. Flow on paper, cognitive-load check (one primary action per screen, ≤3 taps), events to track named before build.</div>
+    <div><b>3 · Build</b>FSE. 1-week slices. Done = works + events fire + n8n failures route to the error flow.</div>
+    <div><b>4 · QA</b>Me. Test against the brief on real devices and the test account; data check vs source totals.</div>
+    <div><b>5 · Launch</b>Staged: 3 students → all. Advisors briefed; parent message if it touches them.</div>
+    <div><b>6 · Readout</b>Day 7 early check, day 14 decision: scale, iterate or kill. Auto-built from the dashboards.</div>
+    <div><b>7 · Log</b>One line in the decision log: what we learned and what we stop doing.</div>
+  </div>
+  <h3>Rhythm</h3>
+  <ul>
+    <li><b>Monday</b> (45 min): plan the week from the OKR board in ClickUp; each card links its brief.</li>
+    <li><b>Daily</b>: async ClickUp update (done / doing / blocked). A call only when something is blocked.</li>
+    <li><b>Friday</b> (45 min): demo what shipped plus metric review of anything past day 7.</li>
+    <li><b>Monthly</b>: retro and OKR score. The team metric is <b>% of launched OKRs that hit their success metric</b> (start target 50%, then 65%). This rewards fewer, better bets over shipping volume.</li>
+  </ul>
+  <h3>Guardrails that stop systems breaking</h3>
+  <ul>
+    <li>A <b>metric dictionary</b> owned by me: one definition per KPI, used by the SQL, the dashboards and the team.</li>
+    <li>Every automation is <b>idempotent</b> (source ids as keys) and wired to the <b>error-handler flow</b>, which turns failures into a P1 ClickUp task.</li>
+    <li>A weekly <b>reconciliation</b>: warehouse revenue vs Razorpay settlement, lead count vs Meta lead forms. A gap over 2% blocks the Monday review.</li>
+    <li>A <b>ClickUp status contract</b>: statuses can't be renamed without updating the flow 03 map (owned by the SD).</li>
+  </ul>
+
+  <h2>5. Student dashboard</h2>
+  <p><a class="btn" href="students.html">Open the Student tracker →</a></p>
+  <p>It replaces the weekly doc and scattered ClickUp folders with one board, sorted worst-first so the weekly review starts with the teens who need help. It has a cohort view and a single-student drill-down.</p>
+  <h3>KPIs by level and lens</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Level</th><th>Q1 Quantity: did we conduct it?</th><th>Q2 Quality: did they like it?</th><th>Q3 Performance: how did they do?</th></tr>
+    <tr><td>Day</td><td>Quiz run each day; timetable published for each teen</td><td>Quiz participation trend (proxy for interest)</td><td>Focus min/day, timetable adherence (done ÷ planned self-study), quiz score, active minutes, sleep and recovery</td></tr>
+    <tr><td>Week (academic)</td><td>Academic sessions 1 and 2 held; monthly syllabus re-evaluation done</td><td>Session rating</td><td>Task completion, deadline adherence, time-estimate accuracy, chapter readiness score, syllabus pace vs 25%/quarter, exam score vs target</td></tr>
+    <tr><td>Month</td><td>Workshops, pod, peer, mentor call, branding shoot: held vs planned</td><td>Rating, NPS, rating response rate</td><td>Attendance; soft-skill delta across 11 skills; mentor → career roadmap step; clips published</td></tr>
+    <tr><td>Quarter</td><td>Podcast, competition prep, parent-child, out-of-city, theme project held</td><td>Teen NPS; parent NPS for the parent-child workshop</td><td>Episode published, competition placement, theme milestones; roadmap hit-rate (career binary, personal monthly, academic)</td></tr>
+  </table></div>
+  <p><b>Health score</b> (weekly, per teen): 35% academics, 25% focus, 20% attendance, 10% quiz, 10% recovery. Red &lt;50, amber 50–70, green &gt;70. It is a triage tool, not a grade; the weights get revisited after 4 weeks against advisor judgement.</p>
+  <h3>Minimal human intervention</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Data</th><th>How it arrives</th><th>Human effort</th></tr>
+    <tr><td>Focus, tasks, chapter stages, app use</td><td>App DB → nightly sync (flow 06)</td><td>None</td></tr>
+    <tr><td>Quiz</td><td>Google Form auto-graded (flow 05) now; in-app later</td><td>None</td></tr>
+    <tr><td>Wearables</td><td>HealthKit / Health Connect via the app; WHOOP and Garmin APIs nightly</td><td>One-time connect</td></tr>
+    <tr><td>Session attendance and rating</td><td>Push after each session: 1-tap 1–5 stars + optional NPS</td><td>Teen: 3 seconds</td></tr>
+    <tr><td>Soft skills</td><td>Facilitator form per workshop (11 sliders per group)</td><td>~5 min per workshop</td></tr>
+    <tr><td>Exam marks, targets</td><td>Advisor enters once per exam in the app</td><td>Once per exam cycle</td></tr>
+  </table></div>
+  <p>Flow 07 checks every night for missed deadlines, rigour lag and 3 days without focus, then sends <b>one grouped nudge</b> per teen: to the teen and advisor first, and to the parent only on a repeat breach within 7 days. A gap of more than 10 points to the exam target triggers the pre-agreed tutor-support step.</p>
+  <h3>Scope for advisors in non-tuition subjects</h3>
+  <p>Advisors aren't subject experts, so they <b>own the process, not the content</b>: setting targets from the affinity × ability matrix, enforcing the 5-stage rigour (read → notes → practice ≥70% → timed past papers → ≥80% ready), protecting self-study slots in the timetable, and escalating to a tutor when the data says so. The dashboard gives them exactly those levers and nothing that needs subject knowledge.</p>
+  <p><b>Where and when:</b> Metabase on the same warehouse, embedded in ClickUp, live for the weekly review by 12 Dec (weeks 3–6 above). A monthly parent progress card is generated from the same data.</p>
+
+  <h2>6. Risks and what I'm not doing yet</h2>
+  <ul>
+    <li><b>n = 20.</b> Every "metric moved" claim is read alongside conversations; no fake statistical significance.</li>
+    <li><b>Teen data privacy.</b> Wearable and screen-time data need explicit parent consent and minimal retention; parents see summaries, not raw sleep logs.</li>
+    <li><b>Not building yet:</b> a custom CRM (ClickUp is fine), AI timetable generation (needs 6 weeks of clean timetable data first), and Wellness features (wait for ≥5 connected wearables).</li>
+  </ul>
+
+  <h2>7. What's in the submission</h2>
+  <ul>
+    <li><a href="gtm.html">GTM tracker</a> and <a href="students.html">Student tracker</a>: interactive, timeline-filtered, seeded dummy data.</li>
+    <li>GitHub repo: <code>schema/schema.sql</code> (warehouse), <code>sql/gtm_metrics.sql</code>, <code>sql/student_metrics.sql</code>, <code>n8n/01–09</code> (importable workflow JSONs), <code>site/</code> (dashboards and this write-up).</li>
+  </ul>
+
+  <nav class="pager" aria-label="Page navigation"><a class="prev" href="index.html"><small>← Previous</small>Overview</a><a class="next" href="gtm.html"><small>Next →</small>GTM tracker</a></nav>
+  <footer>Shaibaz Shaikh · +91 70217 42967 · shaibazhamidshaikh@gmail.com</footer>
+</div>
+</body>
+</html>

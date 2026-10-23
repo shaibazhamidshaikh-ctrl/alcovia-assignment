@@ -1,0 +1,78 @@
+{
+  "name": "08 Error handler (all workflows)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 08 Error handler\nEvery workflow points here. A failed sync becomes a P1 task in the Systems list, so broken data never goes unnoticed (\"systems that don't break\").",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "7be59848-d80d-5e38-9f0f-be05f24d8b07",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "list": "={{$env.CLICKUP_SYSTEMS_LIST}}",
+        "name": "=❌ n8n failed: {{$json.workflow.name}} – {{$json.execution.error.message}}",
+        "additionalFields": {
+          "priority": 1
+        }
+      },
+      "id": "29960c69-4209-5ac6-966f-5675efda1a55",
+      "name": "ClickUp: ops alert",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "ClickUp: ops alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

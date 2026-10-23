@@ -1,0 +1,159 @@
+{
+  "name": "04 Smallest.ai call outcomes",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 04 Smallest.ai outcomes\nEvery AI call outcome is logged. No-answer / reschedule creates a 3-hour callback task so no discovery slot is silently lost.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smallest-outcome"
+      },
+      "id": "ee419df9-c6a6-55bb-94f5-7cc43bf71cba",
+      "name": "Smallest.ai callback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into ai_calls (call_id, lead_id, purpose, outcome, called_at) select $1, lead_id, $2, $3, now() from leads where phone=$4 on conflict do nothing;",
+        "options": {
+          "queryReplacement": "={{$json.body.callId}},{{$json.body.variables.purpose}},{{$json.body.disposition}},{{$json.body.phoneNumber}}"
+        }
+      },
+      "id": "9dd8decf-5415-56af-ae6a-fad9ae34b141",
+      "name": "Log call",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "or",
+          "conditions": [
+            {
+              "leftValue": "={{$json.body.disposition}}",
+              "rightValue": "no_answer",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{$json.body.disposition}}",
+              "rightValue": "rescheduled",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "7ec27f9e-56fe-5eb4-b83d-beb7b5ed53ef",
+      "name": "Needs human?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "list": "={{$env.CLICKUP_LEADS_LIST}}",
+        "name": "=Call back {{$json.body.phoneNumber}} – AI call {{$json.body.disposition}}",
+        "additionalFields": {
+          "dueDate": "={{$now.plus({hours:3}).toISO()}}"
+        }
+      },
+      "id": "9f221e05-535e-5825-892b-43dd8fafb9f5",
+      "name": "ClickUp comment + callback task",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -60
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Smallest.ai callback": {
+      "main": [
+        [
+          {
+            "node": "Log call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log call": {
+      "main": [
+        [
+          {
+            "node": "Needs human?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs human?": {
+      "main": [
+        [
+          {
+            "node": "ClickUp comment + callback task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

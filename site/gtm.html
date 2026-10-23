@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alcovia GTM Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="appnav"><div class="appnav-in">
+  <a class="brand" href="index.html"><b>Alcovia · Assignment</b><span>Shaibaz Shaikh · Product, Systems &amp; Analytics Lead</span></a>
+  <nav class="tabs-main" aria-label="Assignment sections"><a href="index.html"><span class="n">⌂</span>Overview</a><a href="writeup.html"><span class="n">1</span>Write-up</a><a href="gtm.html" class="on" aria-current="page"><span class="n">2</span>GTM tracker</a><a href="students.html"><span class="n">3</span>Student tracker</a></nav>
+</div></header>
+<div class="wrap">
+  <header class="top">
+    <div><h1>GTM Tracker</h1><div class="sub">Revenue · Meta funnel · Campaign health · RCA &nbsp;<span class="badge">Dummy data, seeded. Live version reads the Supabase views in /sql</span></div></div>
+    <div class="filters">
+      <label for="preset">Timeline</label>
+      <select id="preset">
+        <option value="mtd" selected>This month (MTD)</option>
+        <option value="lastm">Last month</option>
+        <option value="l30">Last 30 days</option>
+        <option value="l90">Last 90 days</option>
+        <option value="qtd">This quarter</option>
+        <option value="ytd">Since Apr 1 (FY)</option>
+        <option value="custom">Custom…</option>
+      </select>
+      <input type="date" id="from" aria-label="From"><input type="date" id="to" aria-label="To">
+    </div>
+  </header>
+  <div class="hint"><b>Try it:</b> change the <b>Timeline</b> (top right). Every tile, chart and table recalculates for that period. Scroll down for the funnel, campaign health and the scale / refresh / drop decisions.</div>
+
+  <section class="grid kpis" id="kpis"></section>
+
+  <section class="section">
+    <div class="head"><h2>Revenue</h2><p>Program (trial + full) vs workshop, against target</p></div>
+    <div class="grid two">
+      <div class="card"><h3>Revenue vs target</h3><div class="chartbox"><canvas id="revChart"></canvas></div></div>
+      <div class="card"><h3>Sign-ups: 3-month trial vs full program</h3><div class="chartbox"><canvas id="mixChart"></canvas></div>
+        <div class="note" id="mixNote"></div></div>
+    </div>
+    <div class="grid two" style="margin-top:14px">
+      <div class="card"><h3>Fortnightly workshops (₹3,999/seat via Razorpay)</h3><div class="tablewrap"><table id="wsTable"></table></div></div>
+      <div class="card"><h3>Invoices generated, not paid</h3><div class="tablewrap"><table id="invTable"></table></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Trial renewals due (next 30 days, as of today)</h3>
+      <div class="note" style="margin-top:2px">Sorted by risk: low app usage + low attendance = call first.</div>
+      <div class="tablewrap"><table id="renTable"></table></div></div>
+  </section>
+
+  <section class="section">
+    <div class="head"><h2>Meta ads funnel</h2><p>Cohort = leads created in the selected window</p></div>
+    <div class="grid two">
+      <div class="card"><h3>Lead → Architect session</h3><div class="funnel" id="funnel" style="margin-top:12px"></div>
+        <div class="note">Show-up rate = attended ÷ discovery set. Drop-off = 1 − architect ÷ ambition interview.</div></div>
+      <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:14px" id="topMetrics"></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Leads per week: paid vs organic</h3><div class="chartbox"><canvas id="leadChart"></canvas></div></div>
+  </section>
+
+  <section class="section">
+    <div class="head"><h2>Campaign performance</h2><p>Workshop and program creatives, frequency watch, landing pages</p></div>
+    <div class="grid two">
+      <div class="card"><h3>Creatives by CTR</h3><div class="tablewrap"><table id="crTable"></table></div>
+        <div class="note">Frequency ≥ 3.0 over the last 7 days → refresh (flow 02 opens a ClickUp task automatically).</div></div>
+      <div class="card"><h3>Landing page health</h3><div class="tablewrap"><table id="lpTable"></table></div>
+        <div class="note">Load time = LCP. Over 2.5 s is flagged.</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="head"><h2>RCA: where to put the next rupee</h2><p>Rules: Scale if CPQL ≤ 80% of average, has wins and frequency &lt; 3. Refresh if frequency ≥ 3 or CTR &lt; 70% of average. Drop if CPQL &gt; 150% of average with zero wins.</p></div>
+    <div class="grid two">
+      <div class="card"><h3>Cost per qualified lead vs conversions</h3><div class="chartbox tall"><canvas id="rcaChart"></canvas></div></div>
+      <div class="card"><h3>Decision per campaign</h3><div class="tablewrap"><table id="rcaTable"></table></div></div>
+    </div>
+  </section>
+
+  <nav class="pager" aria-label="Page navigation"><a class="prev" href="writeup.html"><small>← Previous</small>Write-up</a><a class="next" href="students.html"><small>Next →</small>Student tracker</a></nav>
+  <footer>Built by Shaibaz Shaikh for the Alcovia Product, Systems &amp; Analytics Lead assignment. Every number maps to a query in <code>sql/gtm_metrics.sql</code>.</footer>
+</div>
+
+<script>
+// ---------- seeded dummy data ----------------------------------------
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R=rng(42); const ri=(a,b)=>Math.floor(a+R()*(b-a+1)); const pick=a=>a[Math.floor(R()*a.length)];
+const DAY=864e5, TODAY=new Date('2026-10-23T00:00:00'), START=new Date('2026-04-01T00:00:00');
+const local=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const iso=local; const addD=(d,n)=>new Date(+d+n*DAY);
+const PRICE={TRIAL_3M:30000,PROGRAM_12M:150000,WORKSHOP:3999};
+const fmtINR=n=>'₹'+(n>=1e5?(n/1e5).toFixed(2)+' L':Math.round(n).toLocaleString('en-IN'));
+const fmt=n=>Math.round(n).toLocaleString('en-IN');
+
+const campaigns=[
+ {id:'C1',name:'Program | Parents 35-50 | Mumbai',obj:'program',ctr:1.35,cpm:210,qual:.52,win:.06},
+ {id:'C2',name:'Program | Lookalike payers',obj:'program',ctr:1.1,cpm:240,qual:.58,win:.08},
+ {id:'C3',name:'Program | Interest: IB/IGCSE',obj:'program',ctr:.85,cpm:260,qual:.34,win:.02},
+ {id:'C4',name:'Program | Broad Gurgaon/Delhi',obj:'program',ctr:.7,cpm:190,qual:.28,win:0},
+ {id:'C5',name:'Workshop | Career discovery',obj:'workshop',ctr:1.6,cpm:170,qual:.62,win:.03},
+ {id:'C6',name:'Workshop | Retarget site visitors',obj:'workshop',ctr:2.1,cpm:300,qual:.66,win:.05},
+];
+const creatives=[];
+campaigns.forEach(c=>{const n=c.id==='C1'||c.id==='C5'?3:2; for(let k=0;k<n;k++){creatives.push({id:c.id+'-A'+(k+1),cid:c.id,
+  ...(()=>{const NM=c.obj==='workshop'?[['Last workshop recap','reel'],['Meet the guest: profession teaser','video'],['Static: ₹3,999 seat offer','static'],['Carousel: what teens built','carousel']]
+     :[['Day-in-life of an Alcovian','reel'],['Parent testimonial','video'],['Founder: why Alcovia','video'],['Static: 3 pillars','static'],['Carousel: 12-month roadmap','carousel'],['Dragon app demo','reel']];
+   const x=NM[(k+ri(0,9))%NM.length];return{name:x[0],type:x[1]}})(),ctr:c.ctr*(0.7+R()*0.6),start:ri(0,120),fatigue:0.01+R()*0.025})}});
+const lps=[{id:'LP1',url:'/program',lcp:1900},{id:'LP2',url:'/workshop',lcp:2300},{id:'LP3',url:'/roadmap-quiz',lcp:3400}];
+
+// daily ad insights
+const adDaily=[];
+for(let d=new Date(START);d<=TODAY;d=addD(d,1)){
+  creatives.forEach(cr=>{const age=(d-START)/DAY-cr.start; if(age<0)return; const c=campaigns.find(x=>x.id===cr.cid);
+    const spend=ri(150,450)*(c.obj==='program'?1.4:1);
+    const imp=Math.round(spend/c.cpm*1000); const freq=Math.min(4.6,1.1+age%60*cr.fatigue*1.6+R()*.3);
+    const ctr=cr.ctr*(freq>3?0.7:1)*(0.85+R()*.3)/100; const clicks=Math.round(imp*ctr);
+    adDaily.push({day:iso(d),ad:cr.id,cid:c.id,spend,imp,clicks,freq,leads:Math.round(clicks*(0.03+R()*.02))})});
+}
+// leads: generate from adDaily + organic, walk through funnel
+const leads=[]; let lid=0;
+const addLead=(day,source,cid)=>{const c=campaigns.find(x=>x.id===cid); const L={id:++lid,created:day,source,cid};
+  const q=source==='organic'?.6:c.qual; const winp=source==='organic'?.06:c.win;
+  let t=new Date(day); const st={lead:day};
+  if(R()<q){t=addD(t,ri(0,2));st.qualified=iso(t);
+   if(R()<.62){t=addD(t,ri(1,4));st.discovery_set=iso(t);
+    if(R()<.72){t=addD(t,ri(1,3));st.discovery_attended=iso(t);
+     if(R()<.78){t=addD(t,ri(2,6));st.ambition_interview=iso(t);
+      if(R()<.66){t=addD(t,ri(2,7));st.architect_session=iso(t);
+       if(R()<Math.max(.25,winp*4)){t=addD(t,ri(1,6));st.won=iso(t);L.product=R()<.62?'TRIAL_3M':'PROGRAM_12M';}}}}}}
+  if(!st.won){L.lost=iso(addD(t,ri(3,10)));}
+  L.st=st; L.end=st.won||L.lost; leads.push(L);};
+const byDay={}; adDaily.forEach(r=>{(byDay[r.day+'|'+r.cid]??=0); byDay[r.day+'|'+r.cid]+=r.leads});
+Object.entries(byDay).forEach(([k,n])=>{const [day,cid]=k.split('|');for(let i=0;i<n;i++)addLead(day,'meta',cid)});
+for(let d=new Date(START);d<=TODAY;d=addD(d,1)){const n=ri(0,2);for(let i=0;i<n;i++)addLead(iso(d),'organic',null)}
+
+// enrolments, invoices, payments
+const invoices=[],payments=[],enrol=[];
+leads.filter(l=>l.st.won && l.st.won<=iso(TODAY)).forEach(l=>{
+  const amt=PRICE[l.product]; const issued=l.st.won; const due=iso(addD(new Date(issued),7));
+  const paid=R()<.86; const payDay=iso(addD(new Date(issued),ri(0,9)));
+  const inv={id:'inv_'+l.id,lead:l.id,product:l.product,amount:amt,issued,due,status:'issued',name:'Lead #'+l.id};
+  if(paid && payDay<=iso(TODAY)){inv.status='paid';payments.push({day:payDay,amount:amt,product:l.product});
+    enrol.push({lead:l.id,product:l.product,start:payDay,end:iso(addD(new Date(payDay),l.product==='TRIAL_3M'?90:365))});}
+  invoices.push(inv);});
+// trial -> program conversions (about 45% of trials)
+enrol.filter(e=>e.product==='TRIAL_3M'&&e.end<=iso(TODAY)).forEach(e=>{if(R()<.45){payments.push({day:e.end,amount:PRICE.PROGRAM_12M-PRICE.TRIAL_3M,product:'PROGRAM_12M',conv:true});e.converted=true}});
+// workshops
+const workshops=[]; const professions=['Product Designer','Sports Physio','Investment Banker','Game Developer','Architect','Journalist','Brand Strategist','Neuroscientist','Chef-entrepreneur','Aerospace Engineer','Film Editor','Lawyer','UX Researcher','Climate Scientist'];
+for(let d=new Date('2026-04-11'),i=0;d<=addD(TODAY,14);d=addD(d,14),i++){const seats=d<=TODAY?ri(16,38):0; const w={id:'W'+(i+1),day:iso(d),title:professions[i%professions.length],cap:40,seats};
+  workshops.push(w); for(let s=0;s<seats;s++)payments.push({day:iso(addD(d,-ri(0,10))),amount:PRICE.WORKSHOP,product:'WORKSHOP',ws:w.id});
+  // a few unpaid workshop invoices
+  if(d<=TODAY && R()<.6) invoices.push({id:'inv_w'+i,product:'WORKSHOP',amount:PRICE.WORKSHOP,issued:iso(addD(d,-6)),due:iso(addD(d,-1)),status:'issued',name:'Workshop seat · '+w.title});}
+// landing pages daily
+const lpDaily=[]; for(let d=new Date(START);d<=TODAY;d=addD(d,1)) lps.forEach(p=>{const s=ri(120,420);const fs=Math.round(s*(.22+R()*.1));
+  lpDaily.push({day:iso(d),lp:p.id,sessions:s,bounces:Math.round(s*(p.lcp>3000?.68:.44+R()*.1)),fstart:fs,fsub:Math.round(fs*(p.lcp>3000?.38:.62+R()*.1)),lcp:p.lcp+ri(-300,300)})});
+// targets per month
+const target={}; ['2026-04','2026-05','2026-06','2026-07','2026-08','2026-09','2026-10','2026-11'].forEach((m,i)=>target[m]=600000+i*50000);
+
+// ---------- filter ---------------------------------------------------
+const $=id=>document.getElementById(id);
+function range(p){const t=TODAY;const y=t.getFullYear(),m=t.getMonth();
+  switch(p){case'mtd':return[new Date(y,m,1),t];case'lastm':return[new Date(y,m-1,1),new Date(y,m,0)];
+  case'l30':return[addD(t,-29),t];case'l90':return[addD(t,-89),t];case'qtd':return[new Date(y,Math.floor(m/3)*3,1),t];default:return[START,t]}}
+function setPreset(){const p=$('preset').value; if(p==='custom')return; const [a,b]=range(p); $('from').value=local(a); $('to').value=local(b); render();}
+$('preset').onchange=setPreset; $('from').onchange=$('to').onchange=()=>{$('preset').value='custom';render()};
+const inR=(d,a,b)=>d>=a&&d<=b;
+
+// ---------- charts helpers -------------------------------------------
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const charts={};
+function chart(id,cfg){charts[id]?.destroy(); Chart.defaults.color=css('--muted'); Chart.defaults.borderColor=css('--line'); Chart.defaults.font.family='Inter'; charts[id]=new Chart($(id),cfg)}
+const chip=(t,c)=>`<span class="chip ${c}">${t}</span>`;
+
+// ---------- render ---------------------------------------------------
+function render(){
+  const a=$('from').value,b=$('to').value;
+  const P=payments.filter(p=>inR(p.day,a,b));
+  const rev={program:0,trial:0,workshop:0}; P.forEach(p=>{if(p.product==='WORKSHOP')rev.workshop+=p.amount;else if(p.product==='TRIAL_3M')rev.trial+=p.amount;else rev.program+=p.amount});
+  const total=rev.program+rev.trial+rev.workshop;
+  // prorated target for window
+  let tgt=0; for(let d=new Date(a+'T00:00:00');iso(d)<=b;d=addD(d,1)){const m=iso(d).slice(0,7);const dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();tgt+=(target[m]||0)/dim}
+  const E=enrol.filter(e=>inR(e.start,a,b)); const trials=E.filter(e=>e.product==='TRIAL_3M').length, progs=E.filter(e=>e.product==='PROGRAM_12M').length;
+  const conv=P.filter(p=>p.conv).length;
+  const unpaid=invoices.filter(i=>i.status==='issued'&&i.issued<=b);
+  const ren=enrol.filter(e=>e.product==='TRIAL_3M'&&!e.converted&&e.end>=iso(TODAY)&&e.end<=iso(addD(TODAY,30)));
+  const ach=total/tgt*100;
+  $('kpis').innerHTML=[
+    ['Revenue vs target',fmtINR(total),`Target ${fmtINR(tgt)} · <b style="color:var(${ach>=100?'--good':ach>=80?'--warn':'--bad'})">${ach.toFixed(0)}%</b>`,Math.min(100,ach)],
+    ['Program revenue',fmtINR(rev.program+rev.trial),`Full ${fmtINR(rev.program)} · Trial ${fmtINR(rev.trial)}`],
+    ['Workshop revenue',fmtINR(rev.workshop),`${P.filter(p=>p.product==='WORKSHOP').length} seats · ${(rev.workshop/total*100||0).toFixed(0)}% of total`],
+    ['Students onboarded',fmt(E.length),`${trials} trial · ${progs} full · +${conv} trial→full`],
+    ['Unpaid invoices',fmtINR(unpaid.reduce((s,i)=>s+i.amount,0)),`${unpaid.length} invoices outstanding`],
+    ['Renewals due (30d)',fmt(ren.length),`3-month trials ending by ${addD(TODAY,30).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}`],
+  ].map(([l,v,f,p])=>`<div class="card kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="foot">${f}</div>${p!==undefined?`<div class="bar"><i style="width:${p}%"></i></div>`:''}</div>`).join('');
+
+  // revenue by bucket (week if <=62 days else month)
+  const days=(new Date(b)-new Date(a))/DAY+1, byWeek=days<=62;
+  const key=d=>{if(!byWeek)return d.slice(0,7);const dt=new Date(d+'T00:00:00');const mon=addD(dt,-((dt.getDay()+6)%7));return local(mon)};
+  const buckets={}; for(let d=new Date(a+'T00:00:00');local(d)<=b;d=addD(d,1)){const k=key(local(d));buckets[k]??={p:0,t:0,w:0,tg:0};const m=local(d).slice(0,7);buckets[k].tg+=(target[m]||0)/new Date(d.getFullYear(),d.getMonth()+1,0).getDate()}
+  P.forEach(p=>{const k=key(p.day);if(!buckets[k])return;if(p.product==='WORKSHOP')buckets[k].w+=p.amount;else if(p.product==='TRIAL_3M')buckets[k].t+=p.amount;else buckets[k].p+=p.amount});
+  const labels=Object.keys(buckets).map(k=>byWeek?'Wk of '+new Date(k).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):new Date(k+'-01').toLocaleDateString('en-IN',{month:'short'}));
+  const L=v=>Object.values(buckets).map(v);
+  chart('revChart',{type:'bar',data:{labels,datasets:[
+    {label:'Full program',data:L(x=>x.p),backgroundColor:css('--accent'),stack:'r'},
+    {label:'3-month trial',data:L(x=>x.t),backgroundColor:css('--accent-3'),stack:'r'},
+    {label:'Workshops',data:L(x=>x.w),backgroundColor:css('--accent-2'),stack:'r'},
+    {label:'Target',data:L(x=>x.tg),type:'line',borderColor:css('--ink'),borderDash:[5,4],pointRadius:2,borderWidth:1.5}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtINR(c.raw)}}},scales:{y:{stacked:true,ticks:{callback:v=>fmtINR(v)}},x:{stacked:true}}}});
+  chart('mixChart',{type:'doughnut',data:{labels:['3-month trial','Full program (direct)','Trial → full'],datasets:[{data:[trials,progs,conv],backgroundColor:[css('--accent-3'),css('--accent'),css('--accent-4')],borderWidth:0}]},
+    options:{maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+  const pw=rev.program+rev.trial; $('mixNote').innerHTML=`Program vs workshop revenue: <b>${(pw/total*100||0).toFixed(0)}% / ${(rev.workshop/total*100||0).toFixed(0)}%</b>`;
+
+  // workshops
+  const W=workshops.filter(w=>inR(w.day,a,b));
+  $('wsTable').innerHTML='<tr><th>Date</th><th>Profession</th><th class="num">Seats</th><th class="num">Fill</th><th class="num">Revenue</th></tr>'+
+   (W.length?W.map(w=>`<tr><td>${new Date(w.day).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</td><td>${w.title}</td><td class="num">${w.seats}/${w.cap}</td><td class="num">${chip(Math.round(w.seats/w.cap*100)+'%',w.seats/w.cap>=.75?'good':w.seats/w.cap>=.5?'warn':'bad')}</td><td class="num">${fmtINR(w.seats*PRICE.WORKSHOP)}</td></tr>`).join(''):'<tr><td colspan="5">No workshop in this window</td></tr>');
+  // unpaid
+  const age=i=>{const od=(TODAY-new Date(i.due))/DAY;return od<=0?chip('Not due','neutral'):od<=7?chip(Math.round(od)+'d overdue','warn'):chip(Math.round(od)+'d overdue','bad')};
+  $('invTable').innerHTML='<tr><th>Invoice</th><th>For</th><th class="num">Amount</th><th>Issued</th><th>Status</th></tr>'+
+    unpaid.sort((x,y)=>x.due<y.due?-1:1).slice(-8).reverse().map(i=>`<tr><td>${i.id}</td><td>${i.product==='WORKSHOP'?i.name:(i.product==='TRIAL_3M'?'3-month trial':'Full program')+' · '+i.name}</td><td class="num">${fmtINR(i.amount)}</td><td>${new Date(i.issued).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</td><td>${age(i)}</td></tr>`).join('');
+  // renewals
+  const names=['Aarav','Vihaan','Anaya','Kabir','Myra','Ishaan','Diya','Reyansh','Saanvi','Advik','Kiara','Arjun','Zara','Vivaan','Ira','Aditya'];
+  const RR=rng(7); const rows=ren.map((e,i)=>({n:names[i%names.length]+' '+'SKMPRDJ'[i%7]+'.',end:e.end,app:+(RR()*14+1).toFixed(1),att:Math.round(40+RR()*60)}));
+  rows.forEach(r=>r.risk=r.app<5||r.att<60?'High':r.app<9||r.att<80?'Medium':'Low'); const ord={High:0,Medium:1,Low:2}; rows.sort((x,y)=>ord[x.risk]-ord[y.risk]);
+  $('renTable').innerHTML='<tr><th>Teen</th><th>Trial ends</th><th class="num">Days left</th><th class="num">Avg app min/day (14d)</th><th class="num">Session attendance</th><th>Renewal risk</th><th>Next step</th></tr>'+
+    (rows.length?rows.map(r=>{const dl=Math.round((new Date(r.end)-TODAY)/DAY);return `<tr><td>${r.n}</td><td>${new Date(r.end).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</td><td class="num">${dl}</td><td class="num">${r.app}</td><td class="num">${r.att}%</td><td>${chip(r.risk,r.risk==='High'?'bad':r.risk==='Medium'?'warn':'good')}</td><td>${dl>14?'Auto progress report (T-21)':dl>7?'Advisor renewal call (T-14)':'Program invoice sent (T-7)'}</td></tr>`}).join(''):'<tr><td colspan="7">No renewals due</td></tr>');
+
+  // funnel
+  const C=leads.filter(l=>inR(l.created,a,b)), M=C.filter(l=>l.source==='meta');
+  const cnt=s=>M.filter(l=>l.st[s]&&l.st[s]<=b).length;
+  const stages=[['Total leads',M.length],['Qualified',cnt('qualified')],['Discovery set',cnt('discovery_set')],['Discovery attended',cnt('discovery_attended')],['Ambition interview',cnt('ambition_interview')],['Architect session',cnt('architect_session')],['Signed up',cnt('won')]];
+  $('funnel').innerHTML=stages.map(([n,v],i)=>{const pct=v/stages[0][1]*100||0; const step=i? (v/stages[i-1][1]*100||0).toFixed(0)+'%':'';
+    return `<div class="frow"><div>${n}</div><div class="fb"><i style="width:${Math.max(pct,6)}%">${fmt(v)}</i></div><div class="conv">${step}</div></div>`}).join('');
+  const show=cnt('discovery_attended')/cnt('discovery_set')*100||0, drop=(1-cnt('architect_session')/cnt('ambition_interview'))*100||0;
+  const spend=adDaily.filter(r=>inR(r.day,a,b)).reduce((s,r)=>s+r.spend,0);
+  const won=C.filter(l=>l.st.won&&l.st.won<=b); const organic=C.filter(l=>l.source==='organic').length;
+  const closed=C.filter(l=>l.end<=iso(TODAY)); const j=s=>{const x=closed.filter(l=>s?l.st.won:!l.st.won);return x.reduce((q,l)=>q+(new Date(l.end)-new Date(l.created))/DAY,0)/x.length||0};
+  $('topMetrics').innerHTML=[
+    ['Cost per qualified lead',fmtINR(cnt('qualified')?spend/cnt('qualified'):0),`Spend ${fmtINR(spend)}`],
+    ['Program conversion',(won.length/C.length*100||0).toFixed(1)+'%',`${won.length} paid of ${C.length} leads`],
+    ['Discovery show-up rate',show.toFixed(0)+'%',show<70?chip('Below 70% goal','warn'):chip('On goal','good')],
+    ['Interview → architect drop-off',drop.toFixed(0)+'%',drop>35?chip('Investigate','bad'):chip('Healthy','good')],
+    ['Organic leads',fmt(organic),`${(organic/C.length*100||0).toFixed(0)}% of all leads`],
+    ['Avg lead journey',j(true).toFixed(1)+' days',`to sign-up · ${j(false).toFixed(1)} d to drop-off`],
+  ].map(([l,v,f])=>`<div class="card kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="foot">${f}</div></div>`).join('');
+  // leads per week
+  const wk={}; C.forEach(l=>{const k=key(l.created);wk[k]??={m:0,o:0};wk[k][l.source==='meta'?'m':'o']++});
+  const wks=Object.keys(wk).sort();
+  chart('leadChart',{type:'bar',data:{labels:wks.map(k=>byWeek?new Date(k).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):new Date(k+'-01').toLocaleDateString('en-IN',{month:'short'})),datasets:[
+    {label:'Meta (paid)',data:wks.map(k=>wk[k].m),backgroundColor:css('--accent')},{label:'Organic / referral',data:wks.map(k=>wk[k].o),backgroundColor:css('--accent-2')}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}},scales:{x:{stacked:true},y:{stacked:true}}}});
+
+  // creatives
+  const AD=adDaily.filter(r=>inR(r.day,a,b)); const last7=iso(addD(new Date(b),-6));
+  const agg={}; AD.forEach(r=>{const x=agg[r.ad]??={spend:0,imp:0,clicks:0,leads:0,f:[]};x.spend+=r.spend;x.imp+=r.imp;x.clicks+=r.clicks;x.leads+=r.leads;if(r.day>=last7)x.f.push(r.freq)});
+  const crRows=Object.entries(agg).map(([id,x])=>{const cr=creatives.find(c=>c.id===id);const c=campaigns.find(k=>k.id===cr.cid);return{cr,c,ctr:x.clicks/x.imp*100,cpl:x.leads?x.spend/x.leads:null,freq:x.f.length?x.f.reduce((s,v)=>s+v,0)/x.f.length:0,spend:x.spend}}).sort((x,y)=>y.ctr-x.ctr);
+  const avgCtr=crRows.reduce((s,r)=>s+r.ctr,0)/crRows.length;
+  $('crTable').innerHTML='<tr><th>Creative</th><th>Campaign</th><th class="num">CTR</th><th class="num">CPL</th><th class="num">Freq 7d</th><th>Action</th></tr>'+
+   crRows.map(r=>`<tr><td>${r.cr.name}<br><span class="badge">${r.cr.type}</span></td><td>${chip(r.c.obj,'neutral')}</td><td class="num">${r.ctr.toFixed(2)}%</td><td class="num">${r.cpl===null?'–':fmtINR(r.cpl)}</td><td class="num">${r.freq.toFixed(1)}</td><td>${r.freq>=3?chip('Refresh: freq 3+','bad'):r.ctr<avgCtr*.7?chip('Refresh: low CTR','warn'):r.ctr>avgCtr*1.2?chip('Top performer','good'):chip('Keep','neutral')}</td></tr>`).join('');
+  // landing pages
+  const lpA={}; lpDaily.filter(r=>inR(r.day,a,b)).forEach(r=>{const x=lpA[r.lp]??={s:0,b:0,fs:0,fu:0,l:0,n:0};x.s+=r.sessions;x.b+=r.bounces;x.fs+=r.fstart;x.fu+=r.fsub;x.l+=r.lcp;x.n++});
+  $('lpTable').innerHTML='<tr><th>Page</th><th class="num">Sessions</th><th class="num">Bounce</th><th class="num">Form drop-off</th><th class="num">Load</th><th>Health</th></tr>'+
+   lps.map(p=>{const x=lpA[p.id];if(!x)return'';const l=x.l/x.n/1000,bo=x.b/x.s*100,fd=(1-x.fu/x.fs)*100;
+    return `<tr><td>${p.url}</td><td class="num">${fmt(x.s)}</td><td class="num">${bo.toFixed(0)}%</td><td class="num">${fd.toFixed(0)}%</td><td class="num">${l.toFixed(1)} s</td><td>${l>2.5||bo>60?chip('Fix','bad'):bo>50?chip('Watch','warn'):chip('Healthy','good')}</td></tr>`}).join('');
+
+  // RCA
+  const cAgg=campaigns.map(c=>{const r=AD.filter(x=>x.cid===c.id);const s=r.reduce((q,x)=>q+x.spend,0),imp=r.reduce((q,x)=>q+x.imp,0),cl=r.reduce((q,x)=>q+x.clicks,0);
+    const f7=r.filter(x=>x.day>=last7);const freq=f7.reduce((q,x)=>q+x.freq,0)/f7.length||0;
+    const cl2=C.filter(l=>l.cid===c.id);const q=cl2.filter(l=>l.st.qualified).length,w=cl2.filter(l=>l.st.won).length;return{c,spend:s,ctr:cl/imp*100||0,freq,q,w,cpql:q?s/q:0}}).filter(x=>x.spend>0);
+  const aC=cAgg.reduce((s,x)=>s+x.cpql,0)/cAgg.length, aT=cAgg.reduce((s,x)=>s+x.ctr,0)/cAgg.length;
+  cAgg.forEach(x=>{x.dec= x.w>=1&&x.cpql<=aC*.8&&x.freq<3?'Scale':x.freq>=3||x.ctr<aT*.7?'Refresh':x.cpql>aC*1.5&&x.w===0?'Drop':'Hold'});
+  const dc={Scale:'good',Refresh:'warn',Drop:'bad',Hold:'neutral'};
+  $('rcaTable').innerHTML='<tr><th>Campaign</th><th class="num">Spend</th><th class="num">Qual.</th><th class="num">Won</th><th class="num">CPQL</th><th class="num">CTR</th><th class="num">Freq</th><th>Decision</th></tr>'+
+    cAgg.sort((x,y)=>['Scale','Refresh','Hold','Drop'].indexOf(x.dec)-['Scale','Refresh','Hold','Drop'].indexOf(y.dec)).map(x=>`<tr><td>${x.c.name}</td><td class="num">${fmtINR(x.spend)}</td><td class="num">${x.q}</td><td class="num">${x.w}</td><td class="num">${fmtINR(x.cpql)}</td><td class="num">${x.ctr.toFixed(2)}%</td><td class="num">${x.freq.toFixed(1)}</td><td>${chip(x.dec,dc[x.dec])}</td></tr>`).join('');
+  const col={Scale:css('--good'),Refresh:css('--warn'),Drop:css('--bad'),Hold:css('--muted')};
+  chart('rcaChart',{type:'bubble',data:{datasets:cAgg.map(x=>({label:x.c.name,data:[{x:x.cpql,y:x.w,r:Math.max(5,Math.sqrt(x.spend)/18)}],backgroundColor:col[x.dec]+'aa',borderColor:col[x.dec]}))},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: CPQL ${fmtINR(c.raw.x)}, ${c.raw.y} won`}}},
+      scales:{x:{title:{display:true,text:'Cost per qualified lead (lower is better)'},ticks:{callback:v=>fmtINR(v)}},y:{title:{display:true,text:'Sign-ups'},beginAtZero:true}}}});
+}
+setPreset();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+</script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+{
+  "name": "09 3-month trial renewal pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 09 Trial renewals\nT-21 auto progress report (value proof) → T-14 advisor call → T-7 invoice. Invoice notes carry product_code so flow 01 closes the loop automatically.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            }
+          ]
+        }
+      },
+      "id": "4c9abdf1-ca65-512c-bcb1-e31084a28ae5",
+      "name": "Every day 10:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select s.full_name, s.advisor_email, s.parent_phone, e.end_date, e.end_date - current_date days_left, h.health_score\nfrom enrolments e join students s using (student_id) left join mv_student_health h using (student_id)\nwhere e.product_code='TRIAL_3M' and e.end_date - current_date in (21,14,7)\nand not exists (select 1 from enrolments x where x.converted_from = e.enrolment_id);"
+      },
+      "id": "9b729480-3328-546f-89d3-42234cf1bf25",
+      "name": "Trials ending in 21/14/7 days",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.days_left}}",
+                    "rightValue": 21,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "T-21"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.days_left}}",
+                    "rightValue": 14,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "T-14"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.days_left}}",
+                    "rightValue": 7,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "T-7"
+            }
+          ]
+        }
+      },
+      "id": "c8c3567e-feb5-589e-a4b8-96ca6c67d070",
+      "name": "Days left?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.WHATSAPP_API}}/template/send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{$json.parent_phone}}\", \"template\": \"trial_progress_report\", \"params\": [\"{{$json.full_name}}\", \"{{$json.health_score}}\"]}"
+      },
+      "id": "9c1d1d7f-c8a4-5d98-bca5-38b1f169d696",
+      "name": "T-21: progress report to parent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "list": "={{$env.CLICKUP_LEADS_LIST}}",
+        "name": "=Renewal call: {{$json.full_name}} (health {{$json.health_score}})",
+        "additionalFields": {
+          "assignees": "={{$json.advisor_email}}"
+        }
+      },
+      "id": "4cb821bd-5549-5c38-a46c-c3dca5acfc97",
+      "name": "T-14: advisor renewal call task",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.razorpay.com/v1/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"type\": \"invoice\", \"customer\": {\"contact\": \"{{$json.parent_phone}}\"}, \"line_items\": [{\"name\": \"Alcovia 12-month program\", \"amount\": {{$env.PROGRAM_PRICE_PAISE}}}], \"notes\": {\"product_code\": \"PROGRAM_12M\"}, \"sms_notify\": 1}"
+      },
+      "id": "f4cf167f-35f7-5d25-8f13-031546c10891",
+      "name": "T-7: Razorpay program invoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Every day 10:00": {
+      "main": [
+        [
+          {
+            "node": "Trials ending in 21/14/7 days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trials ending in 21/14/7 days": {
+      "main": [
+        [
+          {
+            "node": "Days left?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Days left?": {
+      "main": [
+        [
+          {
+            "node": "T-21: progress report to parent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "T-14: advisor renewal call task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "T-7: Razorpay program invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

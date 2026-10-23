@@ -1,0 +1,198 @@
+{
+  "name": "07 Missed deadlines & rigour lag → parent/advisor nudges",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 07 Deadline & rigour alerts\nOne grouped message per student per day (never spam).\nalerts_log de-duplicates. Escalates to parent only on repeat breach.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 21 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a7cb43fd-289e-5095-935b-e37798731675",
+      "name": "Every day 21:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- rule 1: task overdue > 24h ; rule 2: subject readiness below pace by 15pts ; rule 3: no focus session 3 days\nselect s.student_id, s.full_name, s.advisor_email, s.parent_phone, 'deadline_missed' rule, t.task_id ref\nfrom tasks t join students s using (student_id)\nwhere t.completed_at is null and t.due_at < now() - interval '24 hours'\nunion all\nselect s.student_id, s.full_name, s.advisor_email, s.parent_phone, 'no_focus_3d', null\nfrom students s where s.status='active' and not exists (\n  select 1 from focus_sessions f where f.student_id=s.student_id and f.started_at > now()-interval '3 days')\nexcept\nselect s.student_id, s.full_name, s.advisor_email, s.parent_phone, a.rule, null\nfrom alerts_log a join students s using (student_id) where a.sent_at::date = current_date;"
+      },
+      "id": "8a0bcb45-5f2b-5d56-98be-2fc135c49631",
+      "name": "Find breaches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const by = {};\nfor (const r of $input.all().map(i => i.json)) {\n  by[r.student_id] ??= { ...r, rules: [] }; by[r.student_id].rules.push(r.rule);\n}\n// escalation ladder: day 1 → student + advisor ; 2nd breach in 7 days → parent too\nreturn Object.values(by).map(s => ({ json: s }));"
+      },
+      "id": "911c84e4-a0e4-5f28-bb79-67256da38d1c",
+      "name": "Group per student",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.WHATSAPP_API}}/template/send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{$json.parent_phone}}\", \"template\": \"alcovia_weekly_nudge\", \"params\": [\"{{$json.full_name}}\", \"{{$json.rules.join(', ')}}\"]}"
+      },
+      "id": "30b2b670-1310-58d1-919f-fe13f0fcb6f9",
+      "name": "WhatsApp parent (Gupshup/WATI template)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "list": "={{$env.CLICKUP_STUDENT_LIST}}",
+        "name": "=⚠ {{$json.full_name}}: {{$json.rules.join(', ')}}",
+        "additionalFields": {
+          "assignees": "={{$json.advisor_email}}"
+        }
+      },
+      "id": "6f53d17d-8ff5-5759-b2cc-a75630508af8",
+      "name": "ClickUp: comment to advisor",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        80
+      ],
+      "credentials": {
+        "clickUpApi": {
+          "id": "CLICKUP",
+          "name": "ClickUp Alcovia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into alerts_log (student_id, rule, recipients) select $1, unnest($2::text[]), array[$3] on conflict do nothing;",
+        "options": {
+          "queryReplacement": "={{$json.student_id}},{{'{'+$json.rules.join(',')+'}'}},{{$json.advisor_email}}"
+        }
+      },
+      "id": "d5648f2b-c0e3-55b8-9d8c-6c55db598f4e",
+      "name": "Log alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        960,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every day 21:30": {
+      "main": [
+        [
+          {
+            "node": "Find breaches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find breaches": {
+      "main": [
+        [
+          {
+            "node": "Group per student",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group per student": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp parent (Gupshup/WATI template)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ClickUp: comment to advisor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClickUp: comment to advisor": {
+      "main": [
+        [
+          {
+            "node": "Log alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}

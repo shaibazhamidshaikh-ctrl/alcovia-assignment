@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alcovia Student Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="appnav"><div class="appnav-in">
+  <a class="brand" href="index.html"><b>Alcovia · Assignment</b><span>Shaibaz Shaikh · Product, Systems &amp; Analytics Lead</span></a>
+  <nav class="tabs-main" aria-label="Assignment sections"><a href="index.html"><span class="n">⌂</span>Overview</a><a href="writeup.html"><span class="n">1</span>Write-up</a><a href="gtm.html"><span class="n">2</span>GTM tracker</a><a href="students.html" class="on" aria-current="page"><span class="n">3</span>Student tracker</a></nav>
+</div></header>
+<div class="wrap">
+  <header class="top">
+    <div><h1>Student Tracker</h1><div class="sub">Replaces the weekly doc + ClickUp folders · every KPI tagged Quantity, Quality or Performance &nbsp;<span class="badge">Dummy data for 20 Alcovians</span></div></div>
+    <div class="filters">
+      <label for="who">View</label>
+      <select id="who"><option value="all">Whole cohort</option></select>
+      <label for="preset">Timeline</label>
+      <select id="preset">
+        <option value="l7">Last 7 days</option>
+        <option value="l30" selected>Last 30 days</option>
+        <option value="mtd">This month</option>
+        <option value="qtd">This quarter</option>
+        <option value="ytd">Since Apr 1</option>
+        <option value="custom">Custom…</option>
+      </select>
+      <input type="date" id="from" aria-label="From"><input type="date" id="to" aria-label="To">
+    </div>
+  </header>
+  <div class="hint"><b>Try it:</b> click any <b>student's name</b> in the review board to open their profile, or pick one from <b>View</b>. Change the <b>Timeline</b> to see day, week or quarter trends.</div>
+
+  <section class="grid three" style="margin-top:16px">
+    <div class="card lens"><h3>Q1 · Did Alcovia conduct it?</h3><div class="note" style="margin-top:0">Quantity: delivery against the plan</div><div id="lensQ1"></div></div>
+    <div class="card lens q2"><h3>Q2 · Did Alcovians like it?</h3><div class="note" style="margin-top:0">Quality: 1-tap in-app rating after every session</div><div id="lensQ2"></div></div>
+    <div class="card lens q3"><h3>Q3 · How did they perform?</h3><div class="note" style="margin-top:0">Performance: outcomes, not activity</div><div id="lensQ3"></div></div>
+  </section>
+
+  <section class="section" id="cohortSec">
+    <div class="head"><h2>Weekly review board</h2><p>Health score = 35% academics · 25% focus · 20% attendance · 10% quiz · 10% recovery. Sorted worst first so the advisor meeting starts with who needs help.</p></div>
+    <div class="card"><div class="tablewrap"><table id="board"></table></div></div>
+  </section>
+
+  <section class="section" id="drillSec" style="display:none">
+    <div class="head"><h2 id="drillName"></h2><p id="drillMeta"></p></div>
+    <div class="grid two">
+      <div class="card"><h3>Roadmaps</h3><div id="roadmaps" style="margin-top:10px"></div></div>
+      <div class="card"><h3>Soft skills: first vs latest workshop</h3><div class="chartbox"><canvas id="skillChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="head"><h2>Day level</h2><p>Focus time, timetable, 8 PM quiz, wearables. All auto-captured.</p></div>
+    <div class="grid two">
+      <div class="card"><h3>Focus minutes per day</h3><div class="chartbox"><canvas id="focusChart"></canvas></div><div class="note">Goal line: 45 min/day of focused study (the honest version of "30 min in app").</div></div>
+      <div class="card"><h3>8 PM quiz: participation and score</h3><div class="chartbox"><canvas id="quizChart"></canvas></div></div>
+      <div class="card"><h3>Sleep and recovery (wearables)</h3><div class="chartbox"><canvas id="wellChart"></canvas></div></div>
+      <div class="card"><h3>Timetable: self-study planned vs done</h3><div class="chartbox"><canvas id="ttChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="head"><h2>Week level: academics</h2><p>Chapter rigour: Read 20 → Notes 40 → Practice ≥70% 60 → Timed PYQ 80 → Exam-ready ≥80% 100</p></div>
+    <div class="grid two">
+      <div class="card"><h3>Chapter readiness vs expected pace, by subject</h3><div class="chartbox"><canvas id="readyChart"></canvas></div><div class="note">Expected pace = 25% of syllabus per quarter.</div></div>
+      <div class="card"><h3>Execution habits</h3><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px" id="habits"></div>
+        <h3 style="margin-top:16px">Exam score: target vs actual</h3><div class="tablewrap"><table id="examTable"></table></div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="head"><h2>Month and quarter level: programme</h2><p>Each activity scored on all three lenses</p></div>
+    <div class="card"><div class="tablewrap"><table id="actTable"></table></div></div>
+  </section>
+
+  <nav class="pager" aria-label="Page navigation"><a class="prev" href="gtm.html"><small>← Previous</small>GTM tracker</a><a class="next" href="index.html"><small>Back to start →</small>Overview</a></nav>
+  <footer>Data path: app + wearables (nightly, flow 06) · quiz (flow 05) · session ratings (in-app, 1 tap) · facilitator soft-skill form (1 per workshop). Queries in <code>sql/student_metrics.sql</code>.</footer>
+</div>
+
+<script>
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R=rng(2026); const ri=(a,b)=>Math.floor(a+R()*(b-a+1));
+const DAY=864e5, TODAY=new Date('2026-10-23T00:00:00'), START=new Date('2026-04-01T00:00:00');
+const local=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, iso=local, addD=(d,n)=>new Date(+d+n*DAY);
+const $=id=>document.getElementById(id); const inR=(d,a,b)=>d>=a&&d<=b; const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
+const chip=(t,c)=>`<span class="chip ${c}">${t}</span>`; const rag=v=>v>=70?'good':v>=50?'warn':'bad';
+
+const NAMES=['Aarav Mehta','Anaya Kapoor','Kabir Sethi','Myra Iyer','Vihaan Rao','Diya Shah','Ishaan Bhatia','Saanvi Nair','Reyansh Gupta','Kiara Menon','Arjun Malhotra','Zara Khan','Vivaan Joshi','Ira Desai','Aditya Verma','Meher Arora','Rohan Pillai','Tara Banerjee','Dev Chawla','Navya Reddy'];
+const SUBJ=['Maths','Science','English','Social Sci.','2nd Language'];
+const ADV=['Ritika (Advisor)','Sahil (Advisor)','Neha (Advisor)'];
+const students=NAMES.map((n,i)=>({id:i,name:n,grade:ri(8,11),adv:ADV[i%3],drive:.35+R()*.65,sleepy:R(),onboard:local(addD(START,ri(0,120)))}));
+
+// daily records
+const daily=[];
+for(let d=new Date(START);d<=TODAY;d=addD(d,1)){const day=local(d),wk=d.getDay()===0||d.getDay()===6;
+  students.forEach(s=>{if(day<s.onboard)return; const trend=Math.min(1,(d-START)/DAY/200); const m=s.drive*(0.75+trend*0.5);
+    const active=R()<0.55+m*0.4;
+    daily.push({s:s.id,day,focus:active?Math.round(Math.max(0,(wk?35:28)*m*2*(0.6+R()*0.8))):0,
+      quiz:R()<0.35+m*0.55?Math.round(45+m*40+R()*20-10):null,
+      planned:wk?120:90, done:Math.round((wk?120:90)*Math.min(1,m*(0.6+R()*0.7))),
+      sleep:Math.round(380+(1-s.sleepy)*110+R()*60-30), recovery:Math.round(40+(1-s.sleepy)*40+R()*20), activeMin:ri(15,95)})})}
+// chapters (10 per subject)
+const prog={}; students.forEach(s=>SUBJ.forEach((sub,j)=>{const lv=[];for(let c=0;c<10;c++){const p=s.drive*(1.1-c*0.08)+R()*.25-.1;lv.push(p>.95?100:p>.75?80:p>.55?60:p>.35?40:p>.15?20:0)}prog[s.id+'|'+sub]=lv}));
+// tasks
+const tasks=[]; students.forEach(s=>{for(let d=new Date(START);d<=TODAY;d=addD(d,ri(1,3))){if(local(d)<s.onboard)continue;const est=ri(20,60);const done=R()<0.45+s.drive*0.5;
+  tasks.push({s:s.id,due:local(d),done,onTime:done&&R()<0.5+s.drive*0.45,est,act:Math.round(est*(0.7+R()*0.9))})}});
+// exams
+const exams=[]; students.forEach(s=>SUBJ.forEach(sub=>[['Unit test','2026-07-15'],['Mid-term','2026-09-20']].forEach(([t,dt])=>{const tg=ri(70,92);exams.push({s:s.id,sub,type:t,date:dt,target:tg,actual:Math.round(tg-18+s.drive*25+R()*10-5)})})));
+// activities calendar
+const ACT=[['Academic session','weekly',2,'AS'],['Workshop','monthly',2,'WS'],['Pod session','monthly',1,'PD'],['Peer session','monthly',1,'PR'],['Mentor call','monthly',1,'MC'],['Personal branding shoot','monthly',1,'PB'],
+           ['Podcast shoot','quarterly',1,'PC'],['Competition prep','quarterly',1,'CP'],['Parent-child workshop','quarterly',1,'PCW'],['Out-of-city experience','quarterly',1,'OC'],['Quarter theme project','quarterly',1,'TH']];
+const sessions=[]; // one row per student per planned occurrence
+ACT.forEach(([name,cad,per,code],ai)=>{const heldRate=[.95,.92,.8,.6,.72,.66,.75,.7,.85,.8,.9][ai]; const like=[4.1,4.6,4.4,3.7,4.5,4.2,4.7,3.9,4.3,4.8,4.0][ai];
+  let occ=[]; if(cad==='weekly'){for(let d=new Date(START);d<=TODAY;d=addD(d,7))for(let k=0;k<per;k++)occ.push(local(addD(d,k*3)))}
+  else if(cad==='monthly'){for(let m=3;m<=9;m++)for(let k=0;k<per;k++)occ.push(local(new Date(2026,m,8+k*14)))}
+  else{['2026-06-20','2026-09-19'].forEach(x=>occ.push(x))}
+  occ.filter(d=>d<=local(TODAY)).forEach((d,oi)=>{const held=R()<heldRate;
+    students.forEach(s=>{if(d<s.onboard)return;const att=held&&R()<0.55+s.drive*0.45;
+      sessions.push({act:name,code,cad,day:d,held,s:s.id,att,rating:att?Math.max(1,Math.min(5,Math.round(like+R()*1.4-0.7))):null,nps:att?Math.max(0,Math.min(10,Math.round(like*2+R()*3-1.5))):null})})})});
+// soft skills + roadmaps
+const SK=['Engagement','Teamwork','Crisis mgmt','Adaptability','Public speaking','Empathy','Curiosity','Communication','Leadership','Creativity','Resilience'];
+const skills={}; students.forEach(s=>skills[s.id]=SK.map(()=>{const f=ri(2,3);return[f,Math.min(5,f+(R()<s.drive?ri(1,2):ri(0,1)))]}));
+const roadmaps={}; students.forEach(s=>{const per=Math.round(4+s.drive*3);roadmaps[s.id]={career:R()<s.drive?'Done':'In progress',personalDone:per,personalDue:7,academicPace:0}});
+
+// ---------- filters --------------------------------------------------
+students.forEach(s=>$('who').insertAdjacentHTML('beforeend',`<option value="${s.id}">${s.name}</option>`));
+function range(p){const t=TODAY,y=t.getFullYear(),m=t.getMonth();switch(p){case'l7':return[addD(t,-6),t];case'l30':return[addD(t,-29),t];case'mtd':return[new Date(y,m,1),t];case'qtd':return[new Date(y,Math.floor(m/3)*3,1),t];default:return[START,t]}}
+function setPreset(){const p=$('preset').value;if(p==='custom')return;const[a,b]=range(p);$('from').value=local(a);$('to').value=local(b);render()}
+$('preset').onchange=setPreset;$('from').onchange=$('to').onchange=()=>{$('preset').value='custom';render()};$('who').onchange=render;
+
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim(); const charts={};
+function chart(id,cfg){charts[id]?.destroy();Chart.defaults.color=css('--muted');Chart.defaults.borderColor=css('--line');Chart.defaults.font.family='Inter';charts[id]=new Chart($(id),cfg)}
+const row=(l,v,c)=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><span>${l}</span><b style="font-variant-numeric:tabular-nums">${c?chip(v,c):v}</b></div>`;
+
+function metricsFor(ids,a,b){
+  const D=daily.filter(r=>ids.has(r.s)&&inR(r.day,a,b)); const T=tasks.filter(t=>ids.has(t.s)&&inR(t.due,a,b));
+  const S=sessions.filter(x=>ids.has(x.s)&&inR(x.day,a,b)); const days=Math.max(1,(new Date(b)-new Date(a))/DAY+1);
+  const ready=avg([...ids].flatMap(i=>SUBJ.map(sub=>avg(prog[i+'|'+sub]))));
+  return {D,T,S,days,
+    focus:avg(D.map(r=>r.focus)), quizPart:D.filter(r=>r.quiz!==null).length/Math.max(1,D.length)*100, quizAvg:avg(D.filter(r=>r.quiz!==null).map(r=>r.quiz)),
+    tt:D.reduce((s,r)=>s+r.done,0)/Math.max(1,D.reduce((s,r)=>s+r.planned,0))*100,
+    taskComp:T.filter(t=>t.done).length/Math.max(1,T.length)*100, onTime:T.filter(t=>t.onTime).length/Math.max(1,T.filter(t=>t.done).length)*100,
+    est:100-avg(T.filter(t=>t.done).map(t=>Math.abs(t.act-t.est)/t.est*100)),
+    att:S.filter(x=>x.held).length?S.filter(x=>x.att).length/S.filter(x=>x.held).length*100:0,
+    rating:avg(S.filter(x=>x.rating).map(x=>x.rating)), recovery:avg(D.map(r=>r.recovery)), sleep:avg(D.map(r=>r.sleep))/60, ready};
+}
+const health=m=>Math.round(.35*(m.taskComp*.5+m.ready*.5)+.25*Math.min(100,m.focus/45*100)+.20*m.att+.10*m.quizPart+.10*m.recovery);
+
+function render(){
+  const a=$('from').value,b=$('to').value,who=$('who').value;
+  const ids=new Set(who==='all'?students.map(s=>s.id):[+who]); const M=metricsFor(ids,a,b);
+  // lens panels
+  const occ={}; sessions.filter(x=>inR(x.day,a,b)).forEach(x=>{const k=x.act+'|'+x.day;occ[k]??={act:x.act,held:x.held}});
+  const O=Object.values(occ); const planned=O.length, held=O.filter(o=>o.held).length;
+  const quizHeld=new Set(daily.filter(r=>inR(r.day,a,b)).map(r=>r.day)).size;
+  const S=M.S; const nps=S.filter(x=>x.nps!==null); const npsV=nps.length?Math.round((nps.filter(x=>x.nps>=9).length-nps.filter(x=>x.nps<=6).length)/nps.length*100):0;
+  const respRate=S.filter(x=>x.att).length?S.filter(x=>x.rating).length/S.filter(x=>x.att).length*100:0;
+  $('lensQ1').innerHTML=row('Sessions conducted / planned',`${held} / ${planned}`)+row('Delivery rate',Math.round(held/Math.max(1,planned)*100)+'%',rag(held/Math.max(1,planned)*100+10))+
+    row('Daily quizzes run',`${quizHeld} of ${Math.round(M.days)} days`)+row('Workshops held',O.filter(o=>o.act==='Workshop'&&o.held).length)+row('Mentor calls held',O.filter(o=>o.act==='Mentor call'&&o.held).length);
+  $('lensQ2').innerHTML=row('Avg session rating',M.rating.toFixed(2)+' / 5',M.rating>=4.3?'good':M.rating>=3.8?'warn':'bad')+row('NPS',npsV,npsV>=40?'good':npsV>=10?'warn':'bad')+
+    row('Rating response rate',Math.round(respRate)+'%')+row('Lowest-rated activity',(()=>{const g={};S.filter(x=>x.rating).forEach(x=>(g[x.act]??=[]).push(x.rating));const w=Object.entries(g).sort((p,q)=>avg(p[1])-avg(q[1]))[0];return w?w[0]+' ('+avg(w[1]).toFixed(1)+')':'–'})());
+  $('lensQ3').innerHTML=row('Focus minutes / day',Math.round(M.focus),rag(M.focus/45*100))+row('Task completion',Math.round(M.taskComp)+'%',rag(M.taskComp))+
+    row('Chapter readiness',Math.round(M.ready),rag(M.ready+10))+row('Quiz participation',Math.round(M.quizPart)+'%',rag(M.quizPart))+row('Session attendance',Math.round(M.att)+'%',rag(M.att));
+
+  // board / drill
+  $('cohortSec').style.display=who==='all'?'':'none'; $('drillSec').style.display=who==='all'?'none':'';
+  if(who==='all'){
+    const rows=students.map(s=>{const m=metricsFor(new Set([s.id]),a,b);const flags=[];if(m.focus<20)flags.push('Low focus');if(m.taskComp<60)flags.push('Tasks slipping');if(m.sleep<7)flags.push('Sleep <7h');if(m.att<70)flags.push('Missing sessions');return{s,m,h:health(m),flags}}).sort((x,y)=>x.h-y.h);
+    $('board').innerHTML='<tr><th>Alcovian</th><th>Advisor</th><th class="num">Health</th><th class="num">Focus min/day</th><th class="num">Tasks done</th><th class="num">On time</th><th class="num">Readiness</th><th class="num">Attendance</th><th class="num">Quiz</th><th class="num">Sleep</th><th>Flags → auto-action</th></tr>'+
+      rows.map(r=>`<tr><td><a href="#" data-id="${r.s.id}">${r.s.name}</a><br><span class="badge">Grade ${r.s.grade}</span></td><td>${r.s.adv}</td><td class="num">${chip(r.h,rag(r.h))}</td><td class="num">${Math.round(r.m.focus)}</td><td class="num">${Math.round(r.m.taskComp)}%</td><td class="num">${Math.round(r.m.onTime)}%</td><td class="num">${Math.round(r.m.ready)}</td><td class="num">${Math.round(r.m.att)}%</td><td class="num">${Math.round(r.m.quizPart)}%</td><td class="num">${r.m.sleep.toFixed(1)}h</td><td>${r.flags.map(f=>chip(f,'warn')).join(' ')||chip('On track','good')}</td></tr>`).join('');
+    $('board').querySelectorAll('a[data-id]').forEach(el=>el.onclick=e=>{e.preventDefault();$('who').value=el.dataset.id;render();scrollTo({top:0,behavior:'smooth'})});
+  } else {
+    const s=students[+who]; $('drillName').textContent=s.name; $('drillMeta').textContent=`Grade ${s.grade} · ${s.adv} · Health score ${health(M)} · onboarded ${new Date(s.onboard).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}`;
+    const rm=roadmaps[s.id]; const pace=M.ready;
+    $('roadmaps').innerHTML=row('Career roadmap (binary)',rm.career,rm.career==='Done'?'good':'warn')+row('Personal roadmap milestones',`${rm.personalDone} / ${rm.personalDue} months`,rag(rm.personalDone/rm.personalDue*100))+
+      row('Academic: syllabus on track?',pace>=Math.round((TODAY-START)/DAY/365*100)?'Yes':'Behind',pace>=Math.round((TODAY-START)/DAY/365*100)?'good':'bad')+row('Rigour adherence (stages not skipped)',Math.round(60+s.drive*35)+'%');
+    const sk=skills[s.id];
+    chart('skillChart',{type:'radar',data:{labels:SK,datasets:[{label:'First workshop',data:sk.map(x=>x[0]),borderColor:css('--muted'),backgroundColor:'transparent',pointRadius:2},{label:'Latest',data:sk.map(x=>x[1]),borderColor:css('--accent'),backgroundColor:css('--accent')+'33',pointRadius:2}]},
+      options:{maintainAspectRatio:false,scales:{r:{min:0,max:5,ticks:{stepSize:1,display:false},grid:{color:css('--line')},angleLines:{color:css('--line')}}},plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+  }
+
+  // day charts
+  const dayKeys=[];for(let d=new Date(a+'T00:00:00');local(d)<=b;d=addD(d,1))dayKeys.push(local(d));
+  const bucketWeek=dayKeys.length>45; const key=d=>{if(!bucketWeek)return d;const dt=new Date(d+'T00:00:00');return local(addD(dt,-((dt.getDay()+6)%7)))};
+  const g={}; M.D.forEach(r=>{const k=key(r.day);(g[k]??=[]).push(r)}); const ks=Object.keys(g).sort();
+  const lab=ks.map(k=>(bucketWeek?'Wk ':'')+new Date(k+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}));
+  const opt=(y)=>({maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}},scales:y,elements:{point:{radius:0}},interaction:{mode:'index',intersect:false}});
+  chart('focusChart',{type:'line',data:{labels:lab,datasets:[{label:'Avg focus min/day',data:ks.map(k=>avg(g[k].map(r=>r.focus))),borderColor:css('--accent'),backgroundColor:css('--accent')+'22',fill:true,tension:.3},
+    {label:'Goal',data:ks.map(()=>45),borderColor:css('--ink'),borderDash:[5,4],borderWidth:1}]},options:opt({y:{beginAtZero:true}})});
+  chart('quizChart',{type:'bar',data:{labels:lab,datasets:[{label:'Participation %',data:ks.map(k=>g[k].filter(r=>r.quiz!==null).length/g[k].length*100),backgroundColor:css('--accent-3'),yAxisID:'y'},
+    {label:'Avg score %',type:'line',data:ks.map(k=>avg(g[k].filter(r=>r.quiz!==null).map(r=>r.quiz))),borderColor:css('--accent-2'),tension:.3,yAxisID:'y'}]},options:opt({y:{min:0,max:100}})});
+  chart('wellChart',{type:'line',data:{labels:lab,datasets:[{label:'Sleep (h)',data:ks.map(k=>avg(g[k].map(r=>r.sleep))/60),borderColor:css('--accent-3'),tension:.3,yAxisID:'y'},
+    {label:'Recovery %',data:ks.map(k=>avg(g[k].map(r=>r.recovery))),borderColor:css('--accent-4'),tension:.3,yAxisID:'y1'}]},
+    options:opt({y:{min:4,max:10,title:{display:true,text:'hours'}},y1:{position:'right',min:0,max:100,grid:{drawOnChartArea:false}}})});
+  chart('ttChart',{type:'bar',data:{labels:lab,datasets:[{label:'Planned min',data:ks.map(k=>avg(g[k].map(r=>r.planned))),backgroundColor:css('--line')},{label:'Done min',data:ks.map(k=>avg(g[k].map(r=>r.done))),backgroundColor:css('--accent')}]},options:opt({y:{beginAtZero:true}})});
+
+  // readiness
+  const expected=Math.round((TODAY-START)/DAY/365*100);
+  const subjReady=SUBJ.map(sub=>avg([...ids].map(i=>avg(prog[i+'|'+sub]))));
+  chart('readyChart',{type:'bar',data:{labels:SUBJ,datasets:[{label:'Readiness score',data:subjReady,backgroundColor:subjReady.map(v=>v>=expected?css('--accent'):css('--bad'))},
+    {label:`Expected pace (${expected})`,type:'line',data:SUBJ.map(()=>expected),borderColor:css('--ink'),borderDash:[5,4],borderWidth:1,pointRadius:0}]},options:opt({y:{min:0,max:100}})});
+  $('habits').innerHTML=[['Task completion',M.taskComp],['Deadline adherence',M.onTime],['Time-estimate accuracy',M.est]].map(([l,v])=>`<div class="kpi"><div class="lab">${l}</div><div class="val">${Math.round(v)}%</div><div class="bar"><i style="width:${v}%;background:var(${v>=70?'--good':v>=50?'--warn':'--bad'})"></i></div></div>`).join('');
+  const E=exams.filter(e=>ids.has(e.s)); const eg={}; E.forEach(e=>{const k=e.sub+'|'+e.type;(eg[k]??=[]).push(e)});
+  $('examTable').innerHTML='<tr><th>Subject</th><th>Exam</th><th class="num">Target</th><th class="num">Actual</th><th>Gap</th></tr>'+
+    Object.entries(eg).filter(([k])=>k.includes('Mid')).map(([k,v])=>{const t=avg(v.map(x=>x.target)),ac=avg(v.map(x=>x.actual)),gap=ac-t;return `<tr><td>${k.split('|')[0]}</td><td>${k.split('|')[1]}</td><td class="num">${Math.round(t)}%</td><td class="num">${Math.round(ac)}%</td><td>${chip((gap>=0?'+':'')+Math.round(gap),gap>=0?'good':gap>-10?'warn':'bad')}${gap<-10?' <span class="badge">tutor support triggered</span>':''}</td></tr>`}).join('');
+
+  // activities
+  const A={}; S.forEach(x=>{const r=A[x.act]??={cad:x.cad,occ:new Set(),held:new Set(),att:0,elig:0,ratings:[],nps:[]};r.occ.add(x.day);if(x.held){r.held.add(x.day);r.elig++;if(x.att)r.att++}if(x.rating)r.ratings.push(x.rating);if(x.nps!==null)r.nps.push(x.nps)});
+  $('actTable').innerHTML='<tr><th>Activity</th><th>Cadence</th><th class="num">Q1 Conducted / planned</th><th class="num">Q2 Rating</th><th class="num">Q2 NPS</th><th class="num">Q3 Attendance</th><th>Q3 Outcome measure</th></tr>'+
+    ACT.map(([name,cad])=>{const r=A[name];if(!r)return `<tr><td>${name}</td><td>${cad}</td><td class="num" colspan="5">Not scheduled in this window</td></tr>`;
+      const del=r.held.size/r.occ.size*100,rt=avg(r.ratings),np=r.nps.length?Math.round((r.nps.filter(v=>v>=9).length-r.nps.filter(v=>v<=6).length)/r.nps.length*100):0,at=r.att/Math.max(1,r.elig)*100;
+      const out={'Academic session':'Readiness Δ, task completion','Workshop':'Soft-skill score Δ (11 skills)','Pod session':'Peer-support self-report','Peer session':'Topic mastered by learner','Mentor call':'Career roadmap step done','Personal branding shoot':'Clips published / reach',
+        'Podcast shoot':'Episode published','Competition prep':'Placement achieved','Parent-child workshop':'Parent NPS','Out-of-city experience':'Attendance + rating','Quarter theme project':'Project milestone done'}[name];
+      return `<tr><td>${name}</td><td>${cad}</td><td class="num">${r.held.size} / ${r.occ.size} ${chip(Math.round(del)+'%',rag(del+10))}</td><td class="num">${rt.toFixed(1)}</td><td class="num">${np}</td><td class="num">${Math.round(at)}%</td><td>${out}</td></tr>`}).join('');
+}
+setPreset();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+</script>
+</body>
+</html>

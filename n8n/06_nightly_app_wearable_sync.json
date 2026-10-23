@@ -1,0 +1,252 @@
+{
+  "name": "06 Nightly app + wearable sync, health score refresh",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 06 Nightly sync\nReplicates app usage + focus sessions, normalises wearables, then refreshes mv_student_health so the advisor dashboard is ready by 7 AM with zero manual entry.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "93ef379f-e045-5bb1-a9a1-b71e8dc8b738",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "bfb6ca65-1755-5f65-8782-7616bdcc1340",
+      "name": "Every day 02:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select id as session_id, user_id, started_at, ended_at, screen as feature from analytics_events_sessions where started_at >= now() - interval '1 day';"
+      },
+      "id": "da2f2da8-f474-51ad-a92c-e254ee3222d9",
+      "name": "Pull app sessions & focus (app DB)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "APP_DB_RO",
+          "name": "Alcovia App DB (read replica)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": "app_sessions",
+        "columns": {
+          "matchingColumns": [
+            "session_id"
+          ]
+        }
+      },
+      "id": "e4d4e7f5-6322-56f8-a047-3d723d928205",
+      "name": "Upsert app_sessions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.prod.whoop.com/developer/v1/cycle",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "start",
+              "value": "={{$now.minus({days:1}).toISO()}}"
+            }
+          ]
+        }
+      },
+      "id": "58c14c22-81d3-561b-b8e3-dbe93253cc1f",
+      "name": "WHOOP: cycles + sleep",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Apple Health / Samsung Health arrive via the app (HealthKit / Health Connect) into wearable_daily directly.\n// WHOOP & Garmin are cloud APIs, normalised here to one shape.\nreturn $input.all().flatMap(i => i.json.records || []).map(c => ({ json: {\n  student_id: c.alcovia_student_id, day: c.start.slice(0,10), source: 'whoop',\n  strain: c.score?.strain, active_minutes: Math.round((c.score?.kilojoule||0)/25),\n  sleep_minutes: c.sleep_minutes, recovery_pct: c.recovery_score } }));"
+      },
+      "id": "7eeba484-3e56-54da-a908-811f71b583ca",
+      "name": "Normalise wearables",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": "wearable_daily",
+        "columns": {
+          "matchingColumns": [
+            "student_id",
+            "day",
+            "source"
+          ]
+        }
+      },
+      "id": "2e025f41-cfe5-5012-82f9-a4fa505335a5",
+      "name": "Upsert wearable_daily",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "refresh materialized view concurrently mv_student_health;"
+      },
+      "id": "ae55b4f3-308a-5132-a7de-2f25f7e7e80a",
+      "name": "Refresh health score",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        960,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PG_ALCOVIA",
+          "name": "Alcovia Warehouse (Supabase)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every day 02:00": {
+      "main": [
+        [
+          {
+            "node": "Pull app sessions & focus (app DB)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WHOOP: cycles + sleep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull app sessions & focus (app DB)": {
+      "main": [
+        [
+          {
+            "node": "Upsert app_sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WHOOP: cycles + sleep": {
+      "main": [
+        [
+          {
+            "node": "Normalise wearables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalise wearables": {
+      "main": [
+        [
+          {
+            "node": "Upsert wearable_daily",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert app_sessions": {
+      "main": [
+        [
+          {
+            "node": "Refresh health score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert wearable_daily": {
+      "main": [
+        [
+          {
+            "node": "Refresh health score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "08_error_handler"
+  },
+  "tags": [
+    {
+      "name": "alcovia"
+    }
+  ],
+  "active": false
+}
